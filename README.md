@@ -36,6 +36,14 @@ Catatan:
 
 Referensi struktur contract tests: lihat `tests/contract/`.
 
+## Dokumentasi Kontrak
+
+- [Resource modeling (B.1)](docs/resource-modeling.md)
+- [Error catalog (B.4)](docs/error-catalog.md)
+- [Idempotency policy](docs/idempotency.md)
+- [Compatibility policy (B.5)](docs/compatibility-policy.md)
+- [Mock usage](docs/mock-usage.md)
+
 
 ## Menjalankan validator
 

@@ -1,11 +1,33 @@
-# Pemodelan Resource Domain Penyewaan Alat Berat
+# Resource Modeling (B.1)
 
-## Tabel Ekstraksi dan Pengujian Kandidat Resource
+Dokumen ini menjadi sumber utama pemodelan resource untuk kontrak API aktual.
 
-| Kandidat Kata Benda | Kriteria Identitas                    | Kriteria Masa Hidup                    | Kriteria Kemandirian                                                                | Keputusan    | Alasan                                                                       |
-| :------------------ | :------------------------------------ | :------------------------------------- | :---------------------------------------------------------------------------------- | :----------- | :--------------------------------------------------------------------------- |
-| `LeaseRequest`      | Memiliki UUID unik (misal `req_8F2a`) | Ada setelah request selesai            | Dapat berubah status (pending, approved, rejected) tanpa membuat ulang entitas lain | **DITERIMA** | Memenuhi ketiga kriteria resource domain.                                    |
-| `LeasePayment`      | Memiliki UUID unik (misal `pay_01Xz`) | Tersimpan permanen untuk riwayat audit | Berdiri sendiri dan terikat pada `requestId`                                        | **DITERIMA** | Memenuhi ketiga kriteria resource domain.                                    |
-| `Equipment`         | Memiliki serial number / ID alat      | Tetap ada di inventaris lintas request | Status ketersediaannya berubah secara mandiri                                       | **DITERIMA** | Memenuhi ketiga kriteria resource domain.                                    |
-| `CheckoutProcess`   | Tidak memiliki URI/ID yang stabil     | Hilang setelah alur pengajuan selesai  | Ketergantungan penuh pada proses instan                                             | **DITOLAK**  | Tidak memiliki identitas yang dapat ditunjuk dan masa hidup yang independen. |
-| `ValidationResult`  | Tidak ada identifier unik             | Hanya ada sesaat saat eksekusi request | Tidak dapat berubah state secara mandiri                                            | **DITOLAK**  | Merupakan hasil transient dari kalkulasi server, bukan resource domain.      |
+| Resource | Identitas | Masa hidup | Kemandirian | Status |
+| --- | --- | --- | --- | --- |
+| `Equipment` | ID opaque, mis. `eqp_8X2kAB` | Persisten di inventaris | Status ketersediaan berubah mandiri | Diterima |
+| `Rental` | ID opaque, mis. `rnt_3MnB7xP` | Dari pengajuan hingga selesai/dibatalkan | Memiliki lifecycle dan jadwal sendiri | Diterima |
+| `Inspection` | ID opaque, mis. `ins_9Hk2pQ` | Persisten sebagai catatan inspeksi | Terikat pada rental tetapi memiliki status dan waktu sendiri | Diterima |
+
+## Contoh Resource
+
+```json
+{
+	"id": "rnt_3MnB7xP",
+	"equipmentId": "eqp_8X2kAB",
+	"contractorId": "ctr_72Xp9C",
+	"warehouseAdminId": "adm_19Lq2f",
+	"status": "approved",
+	"startTime": "2026-09-15T08:00:00Z",
+	"endTime": "2026-09-18T17:00:00Z",
+	"depositAmount": 150000,
+	"currency": "USD"
+}
+```
+
+## Kandidat yang Ditolak
+
+1. `CheckoutProcess`: tidak memiliki URI/ID stabil dan hanya merupakan alur sementara, bukan resource yang dapat dirujuk.
+2. `ValidationResult`: hanya hasil kalkulasi sementara dari request dan tidak memiliki lifecycle mandiri.
+3. Menggabungkan `Rental` dan `Inspection` menjadi `RentalWithInspections`: memperbesar payload dan menyulitkan pagination serta pemrosesan inspeksi offline.
+
+Definisi schema lengkap, field wajib, dan contoh properti berada di `openapi.yaml`.
