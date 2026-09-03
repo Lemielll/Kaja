@@ -2,9 +2,9 @@
 
 | Nama Anggota                      | Peran                 | NIM                | Username Github | Tanggung Jawab                                                                                                                    |
 | :-------------------------------- | :-------------------- | :----------------- | :-------------- | :-------------------------------------------------------------------------------------------------------------------------------- |
-| Muhammad Dhafin Alfeizar Gandhang | **Contract Owner**    | 24/539735/PA/22916 | Lemielll        | Pemegang tanggung jawab atas `openapi.yaml` . Setiap perubahan antarmuka ditinjau oleh peran ini, terlepas dari siapa penulisnya. |
+| Arnoldus Dharma Wasesa Mahasmara | **Contract Owner**    | 24/545535/PA/23182 | Arnold-XV        | Pemegang tanggung jawab atas `openapi.yaml` . Setiap perubahan antarmuka ditinjau oleh peran ini, terlepas dari siapa penulisnya. |
 | Hafidz Kurniawan Nahruntoko       | **Service Owner**     | 24/539859/PA/22920 | DaisyDazy       | Backend yang di-deploy, konfigurasi, migrasi, dan health endpoint-nya.                                                            |
-| Arnoldus Dharma Wasesa Mahasmara  | **Client Owner**      | 24/545535/PA/23182 | Arnold-XV       | Klien yang dihadapi pengguna, serta pelaporan tertulis atas setiap ambiguitas yang ditemukan dalam kontrak.                       |
+| Muhammad Dhafin Alfeizar Gandhang  | **Client Owner**      | 24/539735/PA/22916 | Lemielll       | Klien yang dihadapi pengguna, serta pelaporan tertulis atas setiap ambiguitas yang ditemukan dalam kontrak.                       |
 | Ajie Armansyah Sunaryo                    | **Integration Owner** | 24/545286/PA/23170            | AjieArmansyahSunaryo        | Mock server, contract test, dan koordinasi dengan kelompok mitra pada Pertemuan 7.                                                |
 
 ## Mock server & runbook
