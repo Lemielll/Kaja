@@ -26,36 +26,10 @@ Menjalankan Prism mock server (default port 4010):
 npx @stoplight/prism-cli mock openapi.yaml
 ```
 
-Contoh `curl` (ganti host/port jika berbeda):
-
-1) Skenario sukses — POST dengan `Idempotency-Key`:
-
-```bash
-curl -i -X POST "http://localhost:4010/v1/lease-payments" \
-	-H "Content-Type: application/json" \
-	-H "Idempotency-Key: 123e4567-e89b-12d3-a456-426614174000" \
-	-d '{"leaseId":"L-123","amount":1000000,"currency":"IDR"}'
-```
-
-2) Skenario error — header `Idempotency-Key` tidak disertakan (harus mengembalikan Problem Details):
-
-```bash
-curl -i -X POST "http://localhost:4010/v1/lease-payments" \
-	-H "Content-Type: application/json" \
-	-d '{"leaseId":"L-124","amount":500000,"currency":"IDR"}'
-```
-
-3) Skenario conflict (409) — ulangi request dengan `Idempotency-Key` sama untuk memicu respons konflik/duplicate:
-
-```bash
-curl -i -X POST "http://localhost:4010/v1/lease-payments" \
-	-H "Content-Type: application/json" \
-	-H "Idempotency-Key: 123e4567-e89b-12d3-a456-426614174000" \
-	-d '{"leaseId":"L-123","amount":1000000,"currency":"IDR"}'
-```
+Contoh perintah lengkap tersedia pada bagian [Contoh curl](#contoh-curl) di bawah.
 
 Catatan:
-- Endpoint dan body mengikuti skema di `openapi.yaml`; sesuaikan field bila diperlukan.
+- Endpoint dan body mengikuti skema aktual di `openapi.yaml`.
 - Ekspektasi status code dan body error mengikuti format RFC 9457 (Problem Details).
 
 ---
