@@ -1,33 +1,14 @@
 # Resource Modeling (B.1)
 
-Dokumen ini menjadi sumber utama pemodelan resource untuk kontrak API aktual.
+Kandidat diturunkan dari paragraf domain pada keputusan domain: alat berat, permohonan/kontrak sewa, inspeksi, proses checkout, hasil validasi, dan gabungan rental dengan inspeksi.
 
-| Resource | Identitas | Masa hidup | Kemandirian | Status |
-| --- | --- | --- | --- | --- |
-| `Equipment` | ID opaque, mis. `eqp_8X2kAB` | Persisten di inventaris | Status ketersediaan berubah mandiri | Diterima |
-| `Rental` | ID opaque, mis. `rnt_3MnB7xP` | Dari pengajuan hingga selesai/dibatalkan | Memiliki lifecycle dan jadwal sendiri | Diterima |
-| `Inspection` | ID opaque, mis. `ins_9Hk2pQ` | Persisten sebagai catatan inspeksi | Terikat pada rental tetapi memiliki status dan waktu sendiri | Diterima |
+| Kandidat | Keputusan | Alasan |
+| --- | --- | --- |
+| `Equipment` | Diterima sebagai resource | Memiliki ID opaque (`eqp_…`), tetap ada di inventaris lintas request, dan status ketersediaannya dapat berubah tanpa membuat ulang rental. |
+| `Rental` | Diterima sebagai resource | Memiliki ID opaque (`rnt_…`), hidup dari pengajuan sampai selesai/dibatalkan, serta memiliki jadwal dan status sendiri. |
+| `Inspection` | Diterima sebagai resource | Memiliki ID opaque (`ins_…`), tetap ada sebagai catatan audit, dan status/catatan inspeksinya dapat berubah secara mandiri walaupun terhubung ke satu rental. |
+| `CheckoutProcess` | Ditolak | Tidak memiliki identifier atau URI stabil dan hanya merupakan rangkaian interaksi sementara sebelum rental dibuat. |
+| `ValidationResult` | Ditolak | Hanya hasil kalkulasi dari satu request; tidak memiliki masa hidup lintas request ataupun lifecycle mandiri. |
+| `RentalWithInspections` | Ditolak | Bukan entitas domain mandiri, melainkan komposisi tampilan. Menjadikannya resource akan menggabungkan lifecycle berbeda dan menyulitkan pagination maupun pengiriman inspeksi offline. |
 
-## Contoh Resource
-
-```json
-{
-	"id": "rnt_3MnB7xP",
-	"equipmentId": "eqp_8X2kAB",
-	"contractorId": "ctr_72Xp9C",
-	"warehouseAdminId": "adm_19Lq2f",
-	"status": "approved",
-	"startTime": "2026-09-15T08:00:00Z",
-	"endTime": "2026-09-18T17:00:00Z",
-	"depositAmount": 150000,
-	"currency": "USD"
-}
-```
-
-## Kandidat yang Ditolak
-
-1. `CheckoutProcess`: tidak memiliki URI/ID stabil dan hanya merupakan alur sementara, bukan resource yang dapat dirujuk.
-2. `ValidationResult`: hanya hasil kalkulasi sementara dari request dan tidak memiliki lifecycle mandiri.
-3. Menggabungkan `Rental` dan `Inspection` menjadi `RentalWithInspections`: memperbesar payload dan menyulitkan pagination serta pemrosesan inspeksi offline.
-
-Definisi schema lengkap, field wajib, dan contoh properti berada di `openapi.yaml`.
+Endpoint diturunkan dari resource tersebut, bukan dari layar UI: koleksi tersedia di `/equipments` dan `/rentals`, sedangkan inspeksi menjadi sub-resource satu tingkat di `/rentals/{id}/inspections`.

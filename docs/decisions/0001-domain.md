@@ -13,7 +13,7 @@ Proses bisnis penyewaan dan distribusi alat berat pada proyek konstruksi sering 
    - **Admin Gudang:** Memverifikasi pembayaran dan menyetujui jadwal pengeluaran alat.
    - **Operator Lapangan:** Melakukan inspeksi penerimaan fisik dan melaporkan status pengerjaan.
 2. **Minimal 1 Operasi Unsafe dan Konsekuensial:**
-   - Pembayaran jaminan sewa secara digital (`POST /v1/lease-payments`). Operasi ini bersifat _unsafe_ dan tidak boleh terjadi diproses dua kali agar tidak menimbulkan pembebanan biaya ganda pada kontraktor.
+   - Pembuatan rental yang mencatat deposit digital (`POST /v1/rentals`). Operasi ini bersifat _unsafe_ dan tidak boleh diproses dua kali agar tidak menimbulkan kontrak atau pembebanan deposit ganda pada kontraktor.
 3. **Minimal 1 Aktor di Luar Jangkauan Konektivitas Andal:**
    - Operator lapangan bekerja di lokasi proyek terpencil dengan koneksi internet yang intermiten/putus-nyambung, sehingga membutuhkan antrean mutasi lokal (_durable mutation queue_) pada aplikasi _mobile_.
 4. **Cakupan Kecil dan Utuh:**
@@ -28,7 +28,7 @@ Kami memutuskan untuk menetapkan domain **Sistem Penyewaan dan Manajemen Pengelu
 Sistem akan dirancang dengan pendekatan _Contract-First_ (OpenAPI 3.1.0) dengan batas arsitektur sebagai berikut:
 
 - **Service (Backend):** Bertindak sebagai penegak otoritatif tunggal atas aturan bisnis (misalnya: alat berat tidak boleh dijadwalkan keluar jika status jaminan sewa belum terverifikasi lulus/terbayar).
-- **Kontrak (API):** Menyatakan status transisi yang valid, merinci skema idempotency key untuk operasi pembayaran, serta menyajikan format galat standar RFC 9457 Problem Details.
+- **Kontrak (API):** Menyatakan status transisi yang valid, merinci skema idempotency key untuk pembuatan rental dan pengiriman inspeksi, serta menyajikan format galat standar RFC 9457 Problem Details.
 - **Klien (Web & Mobile):** Aplikasi Web digunakan oleh Admin Gudang, sedangkan Aplikasi Mobile digunakan oleh Kontraktor dan Operator Lapangan dengan dukungan penyimpanan transaksi lokal (_offline capability_).
 
 ---
@@ -50,7 +50,7 @@ Sistem akan dirancang dengan pendekatan _Contract-First_ (OpenAPI 3.1.0) dengan 
 
 - Memenuhi seluruh syarat formal materi perkuliahan dari Pertemuan 2 hingga Pertemuan 14 (Manajemen Identitas, Mode Offline, Real-time status, hingga Pengujian Kontrak).
 - Memberikan pemisahan tanggung jawab (_separation of concerns_) yang jelas antar pemilik peran (Contract Owner, Service Owner, Client Owner, Integration Owner).
-- Memastikan pencegahan _double-spending_ atau _duplicate request_ pada pembayaran jaminan sewa melalui penerapan `Idempotency-Key` di lapisan API & Service.
+- Memastikan pencegahan _double-spending_ atau _duplicate request_ pada pembuatan rental yang mencatat deposit melalui penerapan `Idempotency-Key` di lapisan API & Service.
 
 ### Dampak Negatif & Mitigasi (Negative Consequences & Risks):
 

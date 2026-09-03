@@ -8,7 +8,7 @@ Operasi mutasi rental dan inspeksi bersifat **unsafe** dan konsekuensial. Oleh k
    - Mandatory Header: `Idempotency-Key`.
    - Format: UUID Version 4 dalam bentuk kanonik dengan tanda hubung (contoh: `0f7c1b9e-3d21-4a6f-9c05-8e2b7d41a9f0`).
 2. **Cakupan Operasi Wajib:**
-   - Wajib pada: `POST /rentals` dan `POST /rentals/{id}/inspections`.
+   - Wajib pada: `POST /rentals` dan `POST /rentals/{id}/inspections`. Kedua operasi mendeklarasikan header tersebut sebagai parameter `required: true` di `openapi.yaml`.
    - Diabaikan pada: Seluruh operasi `GET` dan operasi safe/idempotent lainnya.
 3. **Jendela Retensi (Retention Window):**
    - Key dan respons yang bersangkutan disimpan oleh server selama **24 jam**. Key yang dikirim ulang setelah 24 jam diperlakukan sebagai key baru.

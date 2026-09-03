@@ -22,7 +22,7 @@ Dengan demikian, temuan dalam dokumen ini terutama berkaitan dengan kelengkapan 
 | --- | --- | --- |
 | P0 | Tidak ada autentikasi, role, dan tenant context | Data dan identitas pengguna tidak dapat diamankan atau ditentukan secara kontraktual |
 | P0 | Status pembayaran deposit tidak dimodelkan | Frontend tidak dapat menampilkan atau mengendalikan alur pembayaran |
-| P0 | `Idempotency-Key` inspeksi tidak ada di OpenAPI | Retry offline dapat membuat inspeksi ganda |
+| Selesai | `Idempotency-Key` inspeksi tidak ada di OpenAPI | Header wajib, retensi, dan perilaku retry kini disepakati dalam kontrak |
 | P1 | Tidak ada URL foto atau metadata visual alat | Mobile tidak dapat menampilkan katalog alat secara layak |
 | P1 | Tidak ada API ketersediaan berdasarkan rentang waktu | Kalender booking tidak dapat memprediksi konflik jadwal |
 | P1 | Tidak ada endpoint untuk membaca riwayat inspeksi | Frontend tidak dapat menampilkan hasil atau status sinkronisasi inspeksi |
@@ -30,7 +30,7 @@ Dengan demikian, temuan dalam dokumen ini terutama berkaitan dengan kelengkapan 
 | P1 | Aturan waktu sewa belum jelas | Perhitungan bentrok jadwal dapat berbeda antara client dan server |
 | P2 | Data harga dan biaya belum lengkap | Frontend tidak dapat menampilkan total biaya yang otoritatif |
 | P2 | Pagination dan sorting belum didefinisikan | Daftar besar sulit ditampilkan secara efisien |
-| P2 | Kode error stabil belum tersedia | Frontend sulit melakukan penanganan error berbasis program |
+| Selesai | Kode error stabil belum tersedia | URI `Problem.type` kini stabil dan memiliki contoh konkret per respons error |
 | P2 | Response error umum belum lengkap | Perilaku client untuk autentikasi, rate limit, dan gangguan server tidak jelas |
 
 ## Temuan Detail
@@ -103,13 +103,9 @@ Selain itu, `contractorId` dan `warehouseAdminId` dikirim oleh client pada saat 
 
 **Rekomendasi:** definisikan security scheme, mekanisme tenant context, serta sumber identitas aktor. Identitas pengguna yang sedang login sebaiknya diambil dari token, bukan dipercaya dari body request.
 
-### 5. `Idempotency-Key` inspeksi tidak konsisten dengan dokumentasi
+### 5. `Idempotency-Key` inspeksi — selesai
 
-`docs/idempotency-policy.md` menyatakan bahwa `POST /rentals/{id}/inspections` wajib membawa `Idempotency-Key`. Namun parameter header tersebut hanya didefinisikan pada `POST /rentals` di `openapi.yaml`.
-
-**Dampak ke mobile offline:** ketika operator mengirim ulang inspeksi setelah koneksi pulih, backend dapat membuat record inspeksi ganda jika tidak memiliki mekanisme deduplikasi yang disepakati.
-
-**Rekomendasi:** tambahkan parameter header `Idempotency-Key` pada endpoint inspeksi dan dokumentasikan perilaku retry, retensi key, serta response ketika payload identik dikirim ulang.
+`POST /rentals/{id}/inspections` kini mewajibkan header `Idempotency-Key` di `openapi.yaml`, selaras dengan [pernyataan idempotency](idempotency.md). Key memakai UUID v4, disimpan selama 24 jam, dan dipakai ulang dengan body yang sama ketika mobile melakukan retry setelah koneksi pulih. Kontrak juga menyatakan respons `409` untuk key yang dipakai pada body berbeda dan request asal yang masih diproses.
 
 ### 6. Tidak ada endpoint untuk membaca riwayat inspeksi
 
@@ -198,13 +194,9 @@ Beberapa status memiliki `enum` tertutup, tetapi deskripsinya menyatakan client 
 
 **Rekomendasi:** pertahankan fallback dalam panduan client, tetapi definisikan strategi evolusi enum dengan jelas. Pertimbangkan schema yang tidak terlalu membatasi response bila kompatibilitas nilai baru memang diwajibkan.
 
-### 14. Kode error yang stabil belum tersedia
+### 14. Kode error stabil — selesai
 
-Deskripsi conflict menyebut `idempotency-key-reuse`, tetapi schema `Problem` tidak memiliki field kode error formal. Client hanya menerima `type`, `title`, `detail`, dan extension members tertentu.
-
-**Dampak ke frontend:** penanganan error berbasis program dapat bergantung pada teks `detail`, yang rentan berubah atau berbeda bahasa.
-
-**Rekomendasi:** tambahkan field seperti `code` atau tetapkan URI `type` yang stabil untuk setiap kategori error. Dokumentasikan field mana yang wajib dan mana yang opsional pada tiap status response.
+Setiap kelas error yang dideklarasikan memakai URI `Problem.type` yang stabil, misalnya `https://api.heavyrental.co/problems/idempotency-key-reuse`. Contoh payload konkret tersedia pada reusable responses di `openapi.yaml`, dan daftar tindakan klien tersedia pada [katalog error](error-catalog.md). Client dapat melakukan percabangan berdasarkan `type`, bukan teks `detail`.
 
 ### 15. Response error umum belum lengkap
 
@@ -220,13 +212,9 @@ Endpoint belum mendefinisikan response untuk kondisi seperti:
 
 **Rekomendasi:** tambahkan response umum yang relevan dan gunakan schema Problem Details secara konsisten.
 
-### 16. Contoh penggunaan di README tidak konsisten dengan server URL
+### 16. Contoh penggunaan di README — selesai
 
-OpenAPI mendefinisikan server dengan prefix `/v1`, sedangkan beberapa contoh pada `README.md` menggunakan endpoint seperti `/equipments` atau `/rentals` langsung pada mock server tanpa prefix yang sama. README juga memuat contoh endpoint lama `lease-payments` yang tidak ada di `openapi.yaml` saat ini.
-
-**Dampak ke frontend dan integrator:** developer dapat menggunakan URL yang salah atau mengira endpoint pembayaran sudah tersedia.
-
-**Rekomendasi:** selaraskan semua contoh curl dengan path OpenAPI saat ini dan hapus atau tandai contoh endpoint lama.
+Semua contoh cURL pada README dan panduan mock kini menggunakan path koleksi yang sama dengan path OpenAPI. Prefix `/v1` sudah berasal dari URL server OpenAPI dan otomatis ditangani Prism pada URL mock. Contoh endpoint lama `lease-payments` tidak digunakan dalam kontrak atau dokumentasi aktif.
 
 ## Keputusan yang Perlu Disepakati
 

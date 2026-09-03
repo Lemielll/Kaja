@@ -196,6 +196,14 @@ paths:
             type: string
             pattern: '^[a-z]+_[A-Za-z0-9]{6,12}$'
             example: rnt_3MnB7xP
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Generated when the operator confirms an inspection and reused unchanged for every retry of that same inspection. Retained 24 hours. Reuse with a different body returns 409 idempotency-key-reuse.
+          schema:
+            type: string
+            format: uuid
+            example: 6f4a43c1-c1fb-4a77-aeff-2a7e23cb467f
       requestBody:
         required: true
         content:
@@ -469,21 +477,112 @@ components:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
+          examples:
+            invalidRequest:
+              summary: Required idempotency key is missing.
+              value:
+                type: https://api.heavyrental.co/problems/invalid-request
+                title: Invalid request
+                status: 400
+                detail: Idempotency-Key is required for this operation.
+                instance: /v1/rentals
     NotFound:
       description: The specified resource was not found.
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
+          examples:
+            resourceNotFound:
+              summary: Rental ID does not exist.
+              value:
+                type: https://api.heavyrental.co/problems/resource-not-found
+                title: Resource not found
+                status: 404
+                detail: Rental rnt_3MnB7xP does not exist.
+                instance: /v1/rentals/rnt_3MnB7xP
     Conflict:
       description: The request conflicts with the current state of the resource, including idempotency-key reuse or date conflicts.
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
+          examples:
+            scheduleConflict:
+              summary: Requested equipment is already scheduled.
+              value:
+                type: https://api.heavyrental.co/problems/rental-schedule-conflict
+                title: Rental schedule conflicts with an existing rental
+                status: 409
+                detail: Equipment eqp_8X2kAB is unavailable for the requested period.
+                instance: /v1/rentals
+                conflictingRentalId: rnt_3MnB7xP
+                unavailableDates:
+                  - '2026-09-15'
+                  - '2026-09-16'
+            idempotencyKeyReuse:
+              summary: A key was reused with a different request body.
+              value:
+                type: https://api.heavyrental.co/problems/idempotency-key-reuse
+                title: Idempotency key was reused for a different request
+                status: 409
+                detail: The supplied key is already associated with another request body.
+                instance: /v1/rentals
+            requestInProgress:
+              summary: The original request is still being processed.
+              value:
+                type: https://api.heavyrental.co/problems/idempotency-request-in-progress
+                title: Idempotent request is still in progress
+                status: 409
+                detail: Retry this request after the interval stated in Retry-After.
+                instance: /v1/rentals
+            inspectionConflict:
+              summary: Inspection duplicates an existing record.
+              value:
+                type: https://api.heavyrental.co/problems/inspection-conflict
+                title: Inspection conflicts with the current equipment state
+                status: 409
+                detail: An inspection for this equipment and event has already been recorded.
+                instance: /v1/rentals/rnt_3MnB7xP/inspections
+                conflictingRentalId: rnt_3MnB7xP
     UnprocessableEntity:
       description: The request was well-formed but the server could not process it due to business rules.
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
+          examples:
+            requestValidationFailed:
+              summary: Required idempotency key is missing.
+              value:
+                type: https://api.heavyrental.co/problems/request-validation-failed
+                title: Request validation failed
+                status: 422
+                detail: Idempotency-Key is required for this operation.
+                instance: /v1/rentals
+            rentalRuleViolation:
+              summary: Rental violates a business rule.
+              value:
+                type: https://api.heavyrental.co/problems/rental-rule-violation
+                title: Rental cannot be processed
+                status: 422
+                detail: The requested rental period does not satisfy the minimum rental duration.
+                instance: /v1/rentals
+            inspectionRuleViolation:
+              summary: Inspection violates a business rule.
+              value:
+                type: https://api.heavyrental.co/problems/inspection-rule-violation
+                title: Inspection cannot be processed
+                status: 422
+                detail: A return inspection cannot be submitted before rental activation.
+                instance: /v1/rentals/rnt_3MnB7xP/inspections
+  headers:
+    RetryAfter:
+      description: Present only when a request with the same idempotency key and body is still being processed; retry after this number of seconds.
+      schema:
+        type: integer
+        minimum: 1
+        example: 3

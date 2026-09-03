@@ -14,7 +14,13 @@ Quick start (manual checks):
 npx @stoplight/prism-cli mock openapi.yaml
 ```
 
-2. Gunakan contoh curl yang ada di `README.md` repositori untuk menguji endpoint.
+2. Jalankan pemeriksaan otomatis dari root repositori setelah mock siap:
+
+```bash
+bash tests/contract/scripts/smoke_check.sh
+```
+
+Skrip memeriksa koleksi equipment, pembuatan rental dengan key, dan penolakan request tanpa key.
 
 3. Tambahkan Partner-facing tests di sini (misalnya, Postman collections, Pact contracts, atau simple shell scripts).
 
