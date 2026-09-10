@@ -5,7 +5,9 @@
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
-    "dev": "node --watch src/app.js"
+    "dev": "node --watch src/app.js",
+    "test:contract": "node tests/contract/contract_check.js",
+    "verify:idempotency": "node tests/contract/verify_idempotency.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
