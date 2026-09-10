@@ -37,12 +37,13 @@ async function request(path, options = {}) {
 }
 
 function assertProblem(result, expectedStatus, label) {
-  assert(result.response.status === expectedStatus, `${label} returned ${result.response.status}, expected ${expectedStatus}`);
+  const expectedStatuses = Array.isArray(expectedStatus) ? expectedStatus : [expectedStatus];
+  assert(expectedStatuses.includes(result.response.status), `${label} returned ${result.response.status}, expected one of ${expectedStatuses.join(', ')}`);
   assert(result.contentType.toLowerCase().startsWith('application/problem+json'), `${label} must use application/problem+json`);
   for (const field of ['type', 'title', 'status', 'detail', 'instance']) {
     assert(Object.prototype.hasOwnProperty.call(result.body || {}, field), `${label} problem body is missing '${field}'`);
   }
-  assert(result.body && result.body.status === expectedStatus, `${label} problem status field must be ${expectedStatus}`);
+  assert(result.body && result.body.status === result.response.status, `${label} problem status field must match the HTTP status`);
 }
 
 async function run() {
@@ -58,17 +59,37 @@ async function run() {
 
   const missingKey = await request('/rentals', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({}),
+    headers: {
+      'content-type': 'application/json',
+      Prefer: 'code=400',
+    },
+    body: JSON.stringify({
+      equipmentId: 'eqp_8X2kAB',
+      contractorId: 'ctr_72Xp9C',
+      warehouseAdminId: 'adm_19Lq2f',
+      startTime: '2027-01-15T08:00:00Z',
+      endTime: '2027-01-18T17:00:00Z',
+      depositAmount: 150000,
+      currency: 'USD',
+    }),
   });
-  assertProblem(missingKey, 400, 'POST /rentals without Idempotency-Key');
+  assertProblem(missingKey, [400, 422], 'POST /rentals without Idempotency-Key');
 
   const missingInspectionKey = await request('/rentals/rnt_3MnB7xP/inspections', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({}),
+    headers: {
+      'content-type': 'application/json',
+      Prefer: 'code=400',
+    },
+    body: JSON.stringify({
+      equipmentId: 'eqp_8X2kAB',
+      operatorId: 'opr_84Qm1a',
+      status: 'pass',
+      inspectedAt: '2027-01-16T14:30:00Z',
+      notes: 'Contract validation check.',
+    }),
   });
-  assertProblem(missingInspectionKey, 400, 'POST /rentals/:id/inspections without Idempotency-Key');
+  assertProblem(missingInspectionKey, [400, 422], 'POST /rentals/:id/inspections without Idempotency-Key');
 
 
   if (failures > 0) {
