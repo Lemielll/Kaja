@@ -35,6 +35,7 @@ app.get('/health', (req, res) => {
 // 3. Mount Routes (Separation of concerns: routes are defined in routes/)
 try {
   const routes = require('./routes');
+  app.use('/v1', routes);
   app.use('/', routes);
 } catch (err) {
   // If routes module is not yet created or implemented by teammates, log warning gracefully
