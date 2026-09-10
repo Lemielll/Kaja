@@ -1,0 +1,58 @@
+name: Service contract
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: heavy_rental
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d heavy_rental"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: service/package-lock.json
+      - name: Install service dependencies
+        run: npm ci
+        working-directory: service
+      - name: Apply schema and seed data
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h 127.0.0.1 -U postgres -d heavy_rental -f service/db/schema.sql
+          psql -h 127.0.0.1 -U postgres -d heavy_rental -f service/db/seed.sql
+      - name: Start service and run conformance checks
+        env:
+          PORT: 3000
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/heavy_rental
+          NODE_ENV: test
+          BASE_URL: http://127.0.0.1:3000/v1
+        run: |
+          npm start > service.log 2>&1 &
+          for attempt in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:3000/health > /dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:3000/health > /dev/null
+          npm run test:contract
+          npm run verify:idempotency
+        working-directory: service
