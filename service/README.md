@@ -1,5 +1,13 @@
 # Heavy Equipment Rental Backend Service
 
+## Deployment
+
+Public service: [https://kaja-service-7dp9.onrender.com](https://kaja-service-7dp9.onrender.com)
+
+Health check: [https://kaja-service-7dp9.onrender.com/health](https://kaja-service-7dp9.onrender.com/health)
+
+API base URL: `https://kaja-service-7dp9.onrender.com/v1`
+
 ## Operations Tracking (A.3)
 
 | Operation                           | Served by | Integration verification |
