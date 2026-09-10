@@ -8,6 +8,7 @@
 require('dotenv').config();
 const express = require('express');
 const db = require('./store/db');
+const problem = require('./problem');
 
 const app = express();
 
@@ -21,6 +22,8 @@ if (missingEnvs.length > 0) {
   process.exit(1);
 }
 
+// Invalid JSON is an input error, not an internal server error.  Keeping this
+// middleware before every route also guarantees the contract error media type.
 app.use(express.json());
 
 // 2. Health Check Endpoint (Session 3: A.10.4)
@@ -39,6 +42,28 @@ try {
     console.error('[ROUTING ERROR] Error loading routes:', err);
   }
 }
+
+// This must be registered after all routes. Route handlers may pass an error
+// with `next(error)` and Express will deliver parser errors here as well.
+// Never serialize `err`, its stack trace, or database error details to clients.
+app.use((err, req, res, next) => {
+  if (res.headersSent) {
+    return next(err);
+  }
+
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return problem.badRequest(
+      res,
+      'Request body contains invalid JSON.',
+      req.originalUrl,
+    );
+  }
+
+  // Logging the error is useful to operators, but the public response remains
+  // the stable RFC 9457 representation defined by `problem.internalError`.
+  console.error(`[UNHANDLED ERROR] ${req.method} ${req.originalUrl}: ${err.message}`);
+  return problem.internalError(res, req.originalUrl);
+});
 
 // 4. Server Lifecycle & Graceful Shutdown
 const PORT = process.env.PORT || 4010;

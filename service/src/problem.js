@@ -169,6 +169,7 @@ function internalError(res, instance) {
 }
 
 module.exports = {
+  buildProblem,
   badRequest,
   notFound,
   conflict,
