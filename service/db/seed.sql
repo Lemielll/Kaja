@@ -66,3 +66,21 @@ VALUES
         '2026-09-11T09:30:00Z'
     )
 ON CONFLICT (id) DO NOTHING;
+
+-- Seed inspections
+INSERT INTO inspections (id, rental_id, equipment_id, operator_id, status, inspected_at, notes, defect_summary, created_at, updated_at)
+VALUES
+    (
+        'ins_9Hk2pQ',
+        'rnt_3MnB7xP',
+        'eqp_8X2kAB',
+        'opr_84Qm1a',
+        'pass',
+        '2026-09-17T10:45:00Z',
+        'Hydraulic line shows minor wear but remains serviceable.',
+        'None detected during visual inspection.',
+        '2026-09-17T10:50:00Z',
+        '2026-09-17T10:50:00Z'
+    )
+ON CONFLICT (id) DO NOTHING;
+

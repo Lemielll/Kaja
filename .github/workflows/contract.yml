@@ -55,4 +55,6 @@ jobs:
           curl --fail --silent http://127.0.0.1:3000/health > /dev/null
           npm run test:contract
           npm run verify:idempotency
+          npm run verify:inspections
         working-directory: service
+

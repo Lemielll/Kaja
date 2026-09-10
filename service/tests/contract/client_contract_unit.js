@@ -70,6 +70,31 @@ const equipment = representations.rowToEquipment({
 assert.equal(equipment.hourlyRate, 2500);
 assert.equal(equipment.soft_deleted, undefined);
 
+const inspection = representations.rowToInspection({
+  id: 'ins_9Hk2pQ',
+  rental_id: 'rnt_3MnB7xP',
+  equipment_id: 'eqp_8X2kAB',
+  operator_id: 'opr_84Qm1a',
+  status: 'pass',
+  inspected_at: '2026-09-17T10:45:00Z',
+  notes: 'Hydraulic line shows minor wear but remains serviceable.',
+  defect_summary: 'None detected during visual inspection.',
+  internal_id: 12345,
+});
+
+assert.deepEqual(Object.keys(inspection), [
+  'id',
+  'rentalId',
+  'equipmentId',
+  'operatorId',
+  'status',
+  'inspectedAt',
+  'notes',
+  'defectSummary',
+]);
+assert.equal(inspection.rentalId, 'rnt_3MnB7xP');
+assert.equal(inspection.internal_id, undefined);
+
 const response = createResponseDouble();
 problem.notFound(response, 'Resource does not exist.', '/missing');
 assert.equal(response.statusCode, 404);
@@ -83,4 +108,4 @@ assert.deepEqual(Object.keys(response.body), [
 ]);
 assert.equal(response.body.status, 404);
 
-console.log('PASS: client representation and Problem Details checks');
+console.log('PASS: client representation and Problem Details checks');

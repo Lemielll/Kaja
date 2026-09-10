@@ -58,3 +58,26 @@ CREATE TABLE IF NOT EXISTS idempotency_keys (
 );
 
 CREATE INDEX IF NOT EXISTS idx_idempotency_created_at ON idempotency_keys(created_at);
+
+-- 4. Table: inspections (Session 3: A.1 & Persistence Inspection)
+CREATE TABLE IF NOT EXISTS inspections (
+    id VARCHAR(32) PRIMARY KEY,
+    rental_id VARCHAR(32) NOT NULL REFERENCES rentals(id) ON DELETE RESTRICT,
+    equipment_id VARCHAR(32) NOT NULL REFERENCES equipments(id) ON DELETE RESTRICT,
+    operator_id VARCHAR(32) NOT NULL,
+    status VARCHAR(32) NOT NULL DEFAULT 'pending_review',
+    inspected_at TIMESTAMPTZ NOT NULL,
+    notes TEXT NOT NULL,
+    defect_summary TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_inspection_status CHECK (
+        status IN ('pending_review', 'in_progress', 'pass', 'fail')
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_inspections_rental_id ON inspections(rental_id);
+CREATE INDEX IF NOT EXISTS idx_inspections_equipment_id ON inspections(equipment_id);
+CREATE INDEX IF NOT EXISTS idx_inspections_operator_id ON inspections(operator_id);
+CREATE INDEX IF NOT EXISTS idx_inspections_inspected_at ON inspections(inspected_at);
+

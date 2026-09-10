@@ -6,9 +6,13 @@
   "scripts": {
     "start": "node src/app.js",
     "dev": "node --watch src/app.js",
+    "test": "node tests/contract/client_contract_unit.js && node tests/contract/service_store_unit.js && node tests/contract/route_inspection_unit.js",
     "test:contract": "node tests/contract/contract_check.js",
     "test:client-contract": "node tests/contract/client_contract_unit.js",
-    "verify:idempotency": "node tests/contract/verify_idempotency.js"
+    "test:store": "node tests/contract/service_store_unit.js",
+    "test:routes": "node tests/contract/route_inspection_unit.js",
+    "verify:idempotency": "node tests/contract/verify_idempotency.js",
+    "verify:inspections": "node tests/contract/verify_inspections.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

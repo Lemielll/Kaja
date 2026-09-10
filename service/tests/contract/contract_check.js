@@ -63,6 +63,14 @@ async function run() {
   });
   assertProblem(missingKey, 400, 'POST /rentals without Idempotency-Key');
 
+  const missingInspectionKey = await request('/rentals/rnt_3MnB7xP/inspections', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+  assertProblem(missingInspectionKey, 400, 'POST /rentals/:id/inspections without Idempotency-Key');
+
+
   if (failures > 0) {
     process.exitCode = 1;
     return;

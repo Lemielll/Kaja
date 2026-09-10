@@ -21,6 +21,7 @@ const problem = require('../problem');
 const representations = require('../representations');
 const rentalStore = require('../store/rentals');
 const idempotencyStore = require('../store/idempotency');
+const inspectionStore = require('../store/inspections');
 
 const router = express.Router();
 
@@ -197,12 +198,73 @@ router.post(
           ? JSON.parse(existing.response_body)
           : existing.response_body;
 
+        if (existing.response_status === 201 && storedBody.id) {
+          res.location(`/rentals/${rentalId}/inspections/${storedBody.id}`);
+        }
+
         return res.status(existing.response_status).json(storedBody);
       }
 
-      // Inspection persistence is not available until the Service Owner
-      // provides the inspection store and business rules.
-      return problem.internalError(res, req.originalUrl);
+      // --- Business Rule Check: Equipment association ---
+      if (body.equipmentId !== rental.equipment_id) {
+        return problem.unprocessable(
+          res,
+          'inspection-rule-violation',
+          'Inspection cannot be processed',
+          `Equipment '${body.equipmentId}' does not match equipment '${rental.equipment_id}' associated with rental '${rentalId}'.`,
+          req.originalUrl,
+        );
+      }
+
+      // --- Business Rule Check: Rental status viability ---
+      if (rental.status === 'cancelled' || rental.status === 'rejected') {
+        return problem.unprocessable(
+          res,
+          'inspection-rule-violation',
+          'Inspection cannot be processed',
+          `Cannot record inspection for a rental in '${rental.status}' status.`,
+          req.originalUrl,
+        );
+      }
+
+      // --- Conflict Check: Duplicate inspection for same event/time ---
+      const duplicate = await inspectionStore.findDuplicateInspection(rentalId, body.inspectedAt);
+      if (duplicate) {
+        return problem.conflict(
+          res,
+          'inspection-conflict',
+          'Inspection conflicts with the current equipment state',
+          'An inspection for this equipment and event has already been recorded.',
+          req.originalUrl,
+          { conflictingRentalId: rentalId },
+        );
+      }
+
+      // --- Insert Inspection into persistent store ---
+      const row = await inspectionStore.insertInspection({
+        rentalId,
+        equipmentId: body.equipmentId,
+        operatorId: body.operatorId,
+        status: body.status,
+        inspectedAt: body.inspectedAt,
+        notes: body.notes,
+        defectSummary: body.defectSummary,
+      });
+
+      const inspection = representations.rowToInspection(row);
+
+      // --- Persist idempotency record ---
+      await idempotencyStore.saveIdempotencyRecord({
+        key: idempotencyKey,
+        requestHash: idempotencyStore.computeBodyHash(body),
+        responseStatus: 201,
+        responseBody: inspection,
+      });
+
+      return res
+        .location(`/rentals/${rentalId}/inspections/${inspection.id}`)
+        .status(201)
+        .json(inspection);
     } catch (err) {
       console.error(`[ROUTE RENTALS] POST /rentals/${rentalId}/inspections error:`, err.message);
       return problem.internalError(res, req.originalUrl);
