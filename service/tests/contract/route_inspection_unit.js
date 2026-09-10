@@ -227,6 +227,35 @@ async function runTests() {
     assert.equal(res7.headers.get('location'), res6.headers.get('location'));
     console.log('  ✓ 7. Idempotent replay returned cached response');
 
+    // 7b. Replay uses the stored response even if the rental is no longer available
+    mockDb.rentals = mockDb.rentals.filter((rental) => rental.id !== 'rnt_3MnB7xP');
+    const res7b = await fetch(`${baseUrl}/rentals/rnt_3MnB7xP/inspections`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'idempotency-key': testKey,
+      },
+      body: JSON.stringify(validPayload),
+    });
+    const body7b = await res7b.json();
+    assert.equal(res7b.status, 201);
+    assert.equal(body7b.id, body6.id);
+    assert.equal(res7b.headers.get('location'), res6.headers.get('location'));
+    console.log('  ✓ 7b. Idempotent replay returned stored response without rental lookup');
+    mockDb.rentals.push({
+      id: 'rnt_3MnB7xP',
+      equipment_id: 'eqp_8X2kAB',
+      contractor_id: 'ctr_72Xp9C',
+      warehouse_admin_id: 'adm_19Lq2f',
+      status: 'approved',
+      start_time: '2026-09-15T08:00:00Z',
+      end_time: '2026-09-18T17:00:00Z',
+      deposit_amount: 150000,
+      currency: 'USD',
+      created_at: '2026-09-10T15:00:00Z',
+      updated_at: '2026-09-11T09:30:00Z',
+    });
+
     // 8. Idempotency key reuse conflict -> 409
     const res8 = await fetch(`${baseUrl}/rentals/rnt_3MnB7xP/inspections`, {
       method: 'POST',

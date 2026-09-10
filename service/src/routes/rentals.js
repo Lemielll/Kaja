@@ -168,16 +168,6 @@ router.post(
     const body = req.body;
 
     try {
-      // --- Verify rental exists ---
-      const rental = await rentalStore.getRentalById(rentalId);
-      if (!rental) {
-        return problem.notFound(
-          res,
-          `Rental ${rentalId} does not exist.`,
-          req.originalUrl,
-        );
-      }
-
       // --- Idempotency check ---
       const existing = await idempotencyStore.getIdempotencyRecord(idempotencyKey);
 
@@ -203,6 +193,16 @@ router.post(
         }
 
         return res.status(existing.response_status).json(storedBody);
+      }
+
+      // --- Verify rental exists ---
+      const rental = await rentalStore.getRentalById(rentalId);
+      if (!rental) {
+        return problem.notFound(
+          res,
+          `Rental ${rentalId} does not exist.`,
+          req.originalUrl,
+        );
       }
 
       // --- Business Rule Check: Equipment association ---
