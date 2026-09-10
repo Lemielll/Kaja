@@ -42,10 +42,16 @@ async function run() {
   if (first.response.status !== 201) {
     throw new Error(`first POST /rentals returned ${first.response.status}, expected 201`);
   }
+  if (first.response.headers.get('location') !== `/rentals/${first.body?.id}`) {
+    throw new Error('first POST /rentals response is missing the resource Location header');
+  }
 
   const replay = await createRental(body);
   if (replay.response.status !== 201 || replay.body?.id !== first.body?.id) {
     throw new Error('identical replay did not return the original 201 rental response');
+  }
+  if (replay.response.headers.get('location') !== `/rentals/${first.body?.id}`) {
+    throw new Error('idempotent replay is missing the resource Location header');
   }
 
   const differentBody = { ...body, depositAmount: 150001 };

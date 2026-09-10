@@ -18,29 +18,11 @@
 const express = require('express');
 const schemas = require('../schemas');
 const problem = require('../problem');
+const representations = require('../representations');
 const rentalStore = require('../store/rentals');
 const idempotencyStore = require('../store/idempotency');
 
 const router = express.Router();
-
-// ---------------------------------------------------------------------------
-// Helper: map DB row → Rental object per openapi.yaml components/schemas/Rental
-// ---------------------------------------------------------------------------
-function rowToRental(row) {
-  return {
-    id: row.id,
-    equipmentId: row.equipment_id,
-    contractorId: row.contractor_id,
-    warehouseAdminId: row.warehouse_admin_id,
-    status: row.status,
-    startTime: row.start_time,
-    endTime: row.end_time,
-    depositAmount: row.deposit_amount,
-    currency: row.currency,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
 
 // ---------------------------------------------------------------------------
 // GET /rentals
@@ -56,7 +38,7 @@ router.get(
       if (req.query.status) filters.status = req.query.status;
 
       const rows = await rentalStore.getAllRentals(filters);
-      return res.status(200).json(rows.map(rowToRental));
+      return res.status(200).json(rows.map(representations.rowToRental));
     } catch (err) {
       console.error('[ROUTE RENTALS] GET /rentals error:', err.message);
       return problem.internalError(res, req.originalUrl);
@@ -100,6 +82,10 @@ router.post(
           ? JSON.parse(existing.response_body)
           : existing.response_body;
 
+        if (existing.response_status === 201 && storedBody.id) {
+          res.location(`/rentals/${storedBody.id}`);
+        }
+
         return res
           .status(existing.response_status)
           .json(storedBody);
@@ -116,7 +102,7 @@ router.post(
         currency: body.currency,
       });
 
-      const rental = rowToRental(row);
+      const rental = representations.rowToRental(row);
 
       // --- Persist idempotency record ---
       await idempotencyStore.saveIdempotencyRecord({
@@ -126,7 +112,10 @@ router.post(
         responseBody: rental,
       });
 
-      return res.status(201).json(rental);
+      return res
+        .location(`/rentals/${rental.id}`)
+        .status(201)
+        .json(rental);
     } catch (err) {
       console.error('[ROUTE RENTALS] POST /rentals error:', err.message);
       return problem.internalError(res, req.originalUrl);
@@ -154,7 +143,7 @@ router.get(
         );
       }
 
-      return res.status(200).json(rowToRental(row));
+      return res.status(200).json(representations.rowToRental(row));
     } catch (err) {
       console.error(`[ROUTE RENTALS] GET /rentals/${req.params.id} error:`, err.message);
       return problem.internalError(res, req.originalUrl);
@@ -211,14 +200,9 @@ router.post(
         return res.status(existing.response_status).json(storedBody);
       }
 
-      // --- Inspection creation is delegated to Service Owner ---
-      // Service Owner will expand this stub with full business logic.
-      // Contract Owner has already validated all input above.
-      return res.status(501).json({
-        message: 'Inspection creation handler not yet implemented by Service Owner.',
-        rentalId,
-        body,
-      });
+      // Inspection persistence is not available until the Service Owner
+      // provides the inspection store and business rules.
+      return problem.internalError(res, req.originalUrl);
     } catch (err) {
       console.error(`[ROUTE RENTALS] POST /rentals/${rentalId}/inspections error:`, err.message);
       return problem.internalError(res, req.originalUrl);

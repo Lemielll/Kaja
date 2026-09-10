@@ -43,6 +43,14 @@ try {
   }
 }
 
+// Keep unknown endpoints in the same client-readable error format as the
+// resource handlers instead of returning Express's default HTML response.
+app.use((req, res) => problem.notFound(
+  res,
+  `Route ${req.method} ${req.originalUrl} does not exist.`,
+  req.originalUrl,
+));
+
 // This must be registered after all routes. Route handlers may pass an error
 // with `next(error)` and Express will deliver parser errors here as well.
 // Never serialize `err`, its stack trace, or database error details to clients.
