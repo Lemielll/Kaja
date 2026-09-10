@@ -1,5 +1,33 @@
 # Contract changelog
 
+## 2026-09-10 — Contract Owner: Kontrak Final v0.1.1
+
+Versi API: **0.1.0 → 0.1.1** (final contract lock; tidak ada perubahan pada field wajib atau endpoint, hanya klarifikasi status code dan perbaikan contoh error yang sebelumnya ambigu).
+
+### Keputusan Resmi Contract Owner
+
+- **Missing `Idempotency-Key` = 400 Bad Request**.
+- **422 Unprocessable Entity** hanya untuk request yang structurally valid tetapi melanggar aturan bisnis, misalnya `startTime >= endTime`, periode rental terlalu singkat, atau inspeksi sebelum rental aktif.
+- **409 Conflict** didefinisikan untuk konflik bisnis/idempotency: jadwal bentrok, reuse key dengan body berbeda, request masih dalam proses, dan inspeksi duplikat.
+- **`POST /rentals/{id}/inspections`** harus mencantumkan `409` dan `422` dalam reusable error responses, sesuai dengan skema final.
+
+> Keputusan ini dibuat untuk menghindari perubahan kontrak hanya demi membuat test hijau. Status code dan contoh problem detail dibakukan berdasarkan semantik HTTP dan business rule, bukan berdasarkan implementasi mock sementara.
+
+### Perubahan resmi ke `openapi.yaml`
+
+- Klarifikasi bahwa header `Idempotency-Key` yang hilang atau salah format adalah **400**.
+- Contoh `BadRequest` diarahkan ke skenario yang benar: missing/malformed required header.
+- Contoh `UnprocessableEntity` tetap pada skenario business rule yang benar, yaitu valid-format tetapi melanggar aturan bisnis.
+- Reusable response `409` dan `422` untuk inspeksi telah dipertahankan dan dijaga konsisten dengan endpoint yang relevan.
+
+### Catatan final
+
+- `openapi.yaml` adalah kontrak final untuk fase implementasi lanjutan.
+- Tidak ada perubahan kontrak yang dibuat untuk memenuhi hasil test semata.
+- Perubahan ini dicatat sebagai keputusan resmi Contract Owner; implementasi lain harus mengikuti kontrak ini tanpa membelokkan semantics status code.
+
+---
+
 ## 2026-09-10 — Contract Owner (Schema Validation Layer)
 
 Versi API: **0.1.0** (tidak ada perubahan kontrak publik; semua perubahan bersifat implementasi internal).

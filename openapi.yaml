@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Heavy Equipment Rental System API
-  version: 0.1.0
+  version: 0.1.1
   license:
     name: Apache License 2.0
     identifier: Apache-2.0
@@ -472,19 +472,19 @@ components:
           example: rnt_3MnB7xP
   responses:
     BadRequest:
-      description: The request could not be processed because the client supplied invalid input.
+      description: The request could not be processed because the client supplied invalid input. Missing or malformed required headers and body fields are treated as 400, not 422.
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
           examples:
             invalidRequest:
-              summary: Required idempotency key is missing.
+              summary: Missing or malformed Idempotency-Key header.
               value:
                 type: https://api.heavyrental.co/problems/invalid-request
                 title: Invalid request
                 status: 400
-                detail: Idempotency-Key is required for this operation.
+                detail: Idempotency-Key is required for this operation and must be a valid UUID.
                 instance: /v1/rentals
     NotFound:
       description: The specified resource was not found.
@@ -549,19 +549,19 @@ components:
                 instance: /v1/rentals/rnt_3MnB7xP/inspections
                 conflictingRentalId: rnt_3MnB7xP
     UnprocessableEntity:
-      description: The request was well-formed but the server could not process it due to business rules.
+      description: The request is structurally valid but violates a business rule. Missing or malformed required request metadata such as Idempotency-Key remains 400 and is not a 422 case.
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
           examples:
             requestValidationFailed:
-              summary: Required idempotency key is missing.
+              summary: startTime must be strictly before endTime.
               value:
                 type: https://api.heavyrental.co/problems/request-validation-failed
                 title: Request validation failed
                 status: 422
-                detail: Idempotency-Key is required for this operation.
+                detail: "startTime '2026-09-18T17:00:00Z' must be strictly before endTime '2026-09-15T08:00:00Z'."
                 instance: /v1/rentals
             rentalRuleViolation:
               summary: Rental violates a business rule.

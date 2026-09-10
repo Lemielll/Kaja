@@ -5,7 +5,7 @@ Semua respons error memakai RFC 9457 dengan media type `application/problem+json
 | URI type | Status | Kondisi pemicu | Extension members | Tindakan klien |
 | --- | --- | --- | --- | --- |
 | `https://api.heavyrental.co/problems/invalid-request` | 400 | Parameter filter tidak valid atau body request tidak dapat diproses. | Tidak ada; gunakan `detail`, `instance`. | Jangan retry; perbaiki request. |
-| `https://api.heavyrental.co/problems/request-validation-failed` | 422 | Request tidak memenuhi kontrak, misalnya `Idempotency-Key` wajib tidak dikirim. | Tidak ada; gunakan `detail`, `instance`. | Jangan retry; lengkapi atau koreksi request. |
+| `https://api.heavyrental.co/problems/request-validation-failed` | 422 | Request valid secara format tetapi melanggar aturan bisnis — contoh: `startTime` tidak sebelum `endTime`. **Catatan:** header `Idempotency-Key` tidak ada/format salah → **400**, bukan 422. | Tidak ada; gunakan `detail`, `instance`. | Jangan retry; lengkapi atau koreksi request sesuai aturan bisnis. |
 | `https://api.heavyrental.co/problems/resource-not-found` | 404 | Rental pada path tidak ditemukan. | Tidak ada; gunakan `detail`, `instance`. | Jangan retry; verifikasi ID atau perbarui tampilan. |
 | `https://api.heavyrental.co/problems/rental-schedule-conflict` | 409 | Jadwal rental bertabrakan dengan rental aktif untuk equipment yang sama. | `conflictingRentalId`, `unavailableDates`. | Jangan retry otomatis; minta pengguna memilih jadwal lain. |
 | `https://api.heavyrental.co/problems/idempotency-key-reuse` | 409 | `Idempotency-Key` dipakai kembali dengan body yang berbeda. | Tidak ada. | Jangan retry dengan key tersebut; buat intent baru setelah pengguna mengonfirmasi. |
