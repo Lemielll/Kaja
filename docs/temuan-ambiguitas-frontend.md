@@ -35,6 +35,59 @@ Dengan demikian, temuan dalam dokumen ini terutama berkaitan dengan kelengkapan 
 
 ## Temuan Detail
 
+## Temuan Autentikasi Sesi 4
+
+### A1. Security scheme dan status autentikasi belum ada di kontrak
+
+`openapi.yaml` masih menggunakan `security: []` dan belum mendefinisikan
+`components.securitySchemes.oauth2`. Operation yang nantinya membutuhkan login
+juga belum mendokumentasikan response `401` dan `403`.
+
+**Dampak ke client:** Web, Mobile, Device, dan MCP belum memiliki kontrak resmi
+untuk memperoleh atau mengirim token, menangani token invalid, atau membedakan
+unauthenticated dari insufficient scope.
+
+**Keputusan yang diminta dari Contract Owner:** tambahkan OAuth2/OIDC security
+scheme, security requirement per operation, dan response `401`, `403`, serta
+`404` untuk operation terproteksi. `404` untuk object access harus mencakup
+resource yang tidak ada dan resource milik principal lain dengan response yang
+identik.
+
+### A2. Identitas aktor masih berasal dari request body
+
+Beberapa request masih memiliki field seperti `contractorId`, `warehouseAdminId`,
+atau `operatorId`. Belum jelas apakah field tersebut hanya referensi resource
+atau dipercaya sebagai identitas pemanggil.
+
+**Dampak ke client:** client dapat mengirim ID pengguna lain dan implementasi
+frontend tidak tahu field mana yang harus diisi dari sesi login.
+
+**Keputusan yang diminta:** identitas pemanggil harus bersumber dari token.
+Tetapkan field body mana yang dihapus, diabaikan, atau hanya dipakai sebagai
+referensi yang divalidasi terhadap `req.principal`.
+
+### A3. Client Device dan MCP belum memiliki klasifikasi final
+
+Web dan Mobile diklasifikasikan sebagai public client dengan Authorization Code
++ PKCE. Namun, kontrak dan deployment belum menjelaskan apakah Device dapat
+diinspeksi oleh pengguna dan apakah MCP berjalan sebagai server-side service.
+
+**Keputusan yang diminta:**
+
+- Device public jika secret dapat dibaca pengguna; gunakan PKCE.
+- Device confidential hanya jika seluruh credential berada di backend tepercaya.
+- MCP confidential jika berjalan server-side; gunakan Client Credentials dan
+  secret manager.
+
+### A4. Alur pengujian token belum konsisten
+
+ADR menyebut Direct Grant untuk automated testing, sedangkan strategi test yang
+diusulkan menggunakan local signing key dan JWKS server mini. Keduanya memiliki
+trade-off berbeda dan tidak boleh dipakai bergantian tanpa keputusan.
+
+**Keputusan yang diminta:** pilih satu strategi untuk CI, dokumentasikan sumber
+issuer/JWKS, dan pastikan test tidak bergantung pada credential production.
+
 ### 1. Equipment tidak memiliki foto atau metadata katalog
 
 `GET /equipments` mengembalikan schema `Equipment`, tetapi schema tersebut hanya memiliki identitas, tipe, status, tarif, mata uang, lokasi, dan timestamp.
