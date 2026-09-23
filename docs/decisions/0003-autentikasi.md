@@ -163,8 +163,8 @@ Password untuk test user disimpan di `.env` (tidak di-commit).
 
 ### Contract Owner (Dhafin) - Step 2, 4
 
-- [ ] Finalisasi scope vocabulary di `service/README.md`
-- [ ] Update OpenAPI dengan security scheme
+- [x] Finalisasi scope vocabulary di `service/README.md`
+- [x] Update OpenAPI dengan security scheme
 
 ### Service/Integration Owner - Step 7, 8, 11
 

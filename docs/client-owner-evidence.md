@@ -26,7 +26,20 @@ refresh token, password, client secret, atau nilai `code_verifier` asli ke repos
 - [x] iOS menggunakan Keychain.
 - [x] Secret server-side disimpan di secret manager.
 
-## 3. Refresh Token Rotation Evidence
+## 3. Client Error Handling
+
+| Response | Client behavior | Security requirement |
+|---|---|---|
+| `401 Unauthorized` | Hapus sesi lokal yang kedaluwarsa dan mulai login ulang. Jangan retry tanpa token baru. | Jangan menampilkan access token atau detail token kepada user. |
+| `403 Forbidden` | Tampilkan akses ditolak dan jangan mengulang request yang sama tanpa perubahan scope/session. | Jangan menyamarkan kekurangan scope sebagai login gagal. |
+| `404 Not Found` | Tampilkan resource tidak ditemukan tanpa menyimpulkan apakah resource milik user lain. | Perlakukan response yang sama untuk object yang tidak ada dan object milik principal lain. |
+| Refresh ditolak karena reuse | Hapus seluruh sesi/token lokal dan minta login ulang. | Jangan mencoba memakai refresh token lama atau menyimpan salinannya. |
+
+Client harus menangani response `application/problem+json` tanpa mengandalkan
+pesan error bebas sebagai identifier perilaku. Gunakan status code dan field
+problem yang telah ditetapkan kontrak.
+
+## 4. Refresh Token Rotation Evidence
 
 ### Preconditions
 
@@ -51,7 +64,7 @@ refresh token, password, client secret, atau nilai `code_verifier` asli ke repos
 | Reuse `RT1` | Rejected | Pending Keycloak | Pending | 2026-09-23 |
 | Reuse `RT2` after `RT1` detection | Rejected | Pending Keycloak | Pending | 2026-09-23 |
 
-## 4. Open Decisions
+## 5. Open Decisions
 
 - [ ] Confirm whether Device communicates directly with the API or through a trusted backend.
 - [ ] Confirm whether MCP is deployed as a server-side integration.
