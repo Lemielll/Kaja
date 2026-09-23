@@ -15,8 +15,12 @@ const http = require('http');
 // Set required envs before loading app
 process.env.PORT = '4019';
 process.env.DATABASE_URL = 'postgresql://mock:mock@localhost:5432/mock';
+process.env.OIDC_ISSUER = 'https://test.local/';
+process.env.OIDC_JWKS_URI = 'http://127.0.0.1:9999/jwks.json';
+process.env.OIDC_AUDIENCE = 'kaja-api';
 process.env.NODE_ENV = 'test';
 
+const { setupKeyServer, closeKeyServer, tokenFor } = require('../helpers/tokens');
 const db = require('../../src/store/db');
 const app = require('../../src/app');
 
@@ -111,6 +115,13 @@ db.query = async (text, params = []) => {
 };
 
 async function runTests() {
+  await setupKeyServer(9999, '127.0.0.1');
+  const token = await tokenFor('opr_84Qm1a', ['inspections:write', 'rentals:read']);
+  const authHeaders = {
+    'content-type': 'application/json',
+    authorization: `Bearer ${token}`,
+  };
+
   const server = http.createServer(app);
   await new Promise((resolve) => server.listen(4019, resolve));
   const baseUrl = 'http://127.0.0.1:4019/v1';
@@ -121,7 +132,7 @@ async function runTests() {
     // 1. Missing Idempotency-Key -> 400
     const res1 = await fetch(`${baseUrl}/rentals/rnt_3MnB7xP/inspections`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { ...authHeaders },
       body: JSON.stringify({}),
     });
     const body1 = await res1.json();
@@ -133,7 +144,7 @@ async function runTests() {
     const res2 = await fetch(`${baseUrl}/rentals/rnt_3MnB7xP/inspections`, {
       method: 'POST',
       headers: {
-        'content-type': 'application/json',
+        ...authHeaders,
         'idempotency-key': '00000000-0000-4000-8000-000000000001',
       },
       body: JSON.stringify({ notes: 'missing fields' }),
@@ -156,7 +167,7 @@ async function runTests() {
     const res3 = await fetch(`${baseUrl}/rentals/rnt_notfound/inspections`, {
       method: 'POST',
       headers: {
-        'content-type': 'application/json',
+        ...authHeaders,
         'idempotency-key': '00000000-0000-4000-8000-000000000002',
       },
       body: JSON.stringify(validPayload),
@@ -170,7 +181,7 @@ async function runTests() {
     const res4 = await fetch(`${baseUrl}/rentals/rnt_3MnB7xP/inspections`, {
       method: 'POST',
       headers: {
-        'content-type': 'application/json',
+        ...authHeaders,
         'idempotency-key': '00000000-0000-4000-8000-000000000003',
       },
       body: JSON.stringify({ ...validPayload, equipmentId: 'eqp_9Y3lBC' }),
@@ -184,7 +195,7 @@ async function runTests() {
     const res5 = await fetch(`${baseUrl}/rentals/rnt_cancelled/inspections`, {
       method: 'POST',
       headers: {
-        'content-type': 'application/json',
+        ...authHeaders,
         'idempotency-key': '00000000-0000-4000-8000-000000000004',
       },
       body: JSON.stringify(validPayload),
@@ -199,7 +210,7 @@ async function runTests() {
     const res6 = await fetch(`${baseUrl}/rentals/rnt_3MnB7xP/inspections`, {
       method: 'POST',
       headers: {
-        'content-type': 'application/json',
+        ...authHeaders,
         'idempotency-key': testKey,
       },
       body: JSON.stringify(validPayload),
@@ -216,7 +227,7 @@ async function runTests() {
     const res7 = await fetch(`${baseUrl}/rentals/rnt_3MnB7xP/inspections`, {
       method: 'POST',
       headers: {
-        'content-type': 'application/json',
+        ...authHeaders,
         'idempotency-key': testKey,
       },
       body: JSON.stringify(validPayload),
@@ -232,7 +243,7 @@ async function runTests() {
     const res7b = await fetch(`${baseUrl}/rentals/rnt_3MnB7xP/inspections`, {
       method: 'POST',
       headers: {
-        'content-type': 'application/json',
+        ...authHeaders,
         'idempotency-key': testKey,
       },
       body: JSON.stringify(validPayload),
@@ -260,7 +271,7 @@ async function runTests() {
     const res8 = await fetch(`${baseUrl}/rentals/rnt_3MnB7xP/inspections`, {
       method: 'POST',
       headers: {
-        'content-type': 'application/json',
+        ...authHeaders,
         'idempotency-key': testKey,
       },
       body: JSON.stringify({ ...validPayload, notes: 'Modified notes' }),
@@ -275,7 +286,7 @@ async function runTests() {
     const res9 = await fetch(`${baseUrl}/rentals/rnt_3MnB7xP/inspections`, {
       method: 'POST',
       headers: {
-        'content-type': 'application/json',
+        ...authHeaders,
         'idempotency-key': duplicateKey,
       },
       body: JSON.stringify(validPayload), // same inspectedAt and rental
@@ -289,6 +300,7 @@ async function runTests() {
     console.log('ALL IN-MEMORY ROUTE AND BUSINESS RULE CHECKS PASSED!');
   } finally {
     server.close();
+    await closeKeyServer();
     await db.close();
   }
 }

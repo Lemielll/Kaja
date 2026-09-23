@@ -73,6 +73,8 @@ jobs:
             exit 1
           fi
 
+          npm test
+          npm run test:authz
           npm run test:contract
           npm run verify:idempotency
           npm run verify:inspections

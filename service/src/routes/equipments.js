@@ -5,11 +5,13 @@ const schemas = require('../schemas');
 const representations = require('../representations');
 const problem = require('../problem');
 const equipmentStore = require('../store/equipments');
+const { requireScope } = require('../auth/require-scope');
 
 const router = express.Router();
 
 router.get(
   '/equipments',
+  requireScope('equipment:read'),
   schemas.validateListEquipmentsQuery,
   async (req, res) => {
     try {

@@ -22,6 +22,8 @@ const representations = require('../representations');
 const rentalStore = require('../store/rentals');
 const idempotencyStore = require('../store/idempotency');
 const inspectionStore = require('../store/inspections');
+const { requireScope } = require('../auth/require-scope');
+const ownership = require('../auth/ownership');
 
 const router = express.Router();
 
@@ -32,11 +34,19 @@ const router = express.Router();
 // ---------------------------------------------------------------------------
 router.get(
   '/rentals',
+  requireScope('rentals:read'),
   schemas.validateListRentalsQuery,   // ← Contract Owner guard (400 on bad query)
   async (req, res) => {
     try {
       const filters = {};
       if (req.query.status) filters.status = req.query.status;
+
+      // Constrain query to principal's ownership context (Session 4: Step 8d)
+      if (req.principal?.subject?.startsWith('adm_') || req.principal?.subject?.includes('admin')) {
+        filters.warehouseAdminId = req.principal.subject;
+      } else if (req.principal?.subject) {
+        filters.contractorId = req.principal.subject;
+      }
 
       const rows = await rentalStore.getAllRentals(filters);
       return res.status(200).json(rows.map(representations.rowToRental));
@@ -54,6 +64,7 @@ router.get(
 // ---------------------------------------------------------------------------
 router.post(
   '/rentals',
+  requireScope('rentals:write'),
   schemas.validateIdempotencyKeyHeader, // ← Contract Owner guard: header required + uuid
   schemas.validateCreateRentalBody,     // ← Contract Owner guard: body required fields + format
   async (req, res) => {
@@ -131,12 +142,23 @@ router.post(
 // ---------------------------------------------------------------------------
 router.get(
   '/rentals/:id',
+  requireScope('rentals:read'),
   schemas.validateRentalIdParam,   // ← Contract Owner guard: path param pattern
   async (req, res) => {
     try {
       const row = await rentalStore.getRentalById(req.params.id);
 
       if (!row) {
+        return problem.notFound(
+          res,
+          `Rental ${req.params.id} does not exist.`,
+          req.originalUrl,
+        );
+      }
+
+      // Layer 3: Object ownership check (Session 4: Step 8c)
+      // Must return identical 404 to prevent ID enumeration
+      if (!ownership.mayReadRental(req.principal, row)) {
         return problem.notFound(
           res,
           `Rental ${req.params.id} does not exist.`,
@@ -159,6 +181,7 @@ router.get(
 // ---------------------------------------------------------------------------
 router.post(
   '/rentals/:id/inspections',
+  requireScope('inspections:write'),
   schemas.validateRentalIdParam,          // ← Contract Owner guard: path param
   schemas.validateIdempotencyKeyHeader,   // ← Contract Owner guard: header required + uuid
   schemas.validateCreateInspectionBody,   // ← Contract Owner guard: body fields + format
@@ -198,6 +221,15 @@ router.post(
       // --- Verify rental exists ---
       const rental = await rentalStore.getRentalById(rentalId);
       if (!rental) {
+        return problem.notFound(
+          res,
+          `Rental ${rentalId} does not exist.`,
+          req.originalUrl,
+        );
+      }
+
+      // --- Layer 3: Object ownership & operator check BEFORE any change ---
+      if (!ownership.mayCreateInspection(req.principal, rental, body)) {
         return problem.notFound(
           res,
           `Rental ${rentalId} does not exist.`,

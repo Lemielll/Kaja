@@ -24,7 +24,11 @@ function assert(condition, message) {
 }
 
 async function request(path, options = {}) {
-  const response = await fetch(`${baseUrl}${path}`, options);
+  const headers = { ...options.headers };
+  if (process.env.TEST_AUTH_TOKEN && !headers.authorization && !headers.Authorization) {
+    headers.authorization = `Bearer ${process.env.TEST_AUTH_TOKEN}`;
+  }
+  const response = await fetch(`${baseUrl}${path}`, { ...options, headers });
   const contentType = response.headers.get('content-type') || '';
   const text = await response.text();
   let body;

@@ -39,6 +39,16 @@ async function getAllRentals(filters = {}) {
       conditions.push(`status = $${params.length}`);
     }
 
+    if (filters.contractorId) {
+      params.push(filters.contractorId);
+      conditions.push(`contractor_id = $${params.length}`);
+    }
+
+    if (filters.warehouseAdminId) {
+      params.push(filters.warehouseAdminId);
+      conditions.push(`warehouse_admin_id = $${params.length}`);
+    }
+
     let sql = `
       SELECT id, equipment_id, contractor_id, warehouse_admin_id, status,
              start_time, end_time, deposit_amount, currency, created_at, updated_at
