@@ -44,15 +44,35 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/heavy_rental
           NODE_ENV: test
           BASE_URL: http://127.0.0.1:3000/v1
+          OIDC_ISSUER: https://test.local/
+          OIDC_JWKS_URI: http://127.0.0.1:9999/jwks.json
+          OIDC_AUDIENCE: kaja-api
         run: |
+          set -o pipefail
+
           npm start > service.log 2>&1 &
+          service_pid=$!
+
           for attempt in {1..20}; do
             if curl --fail --silent http://127.0.0.1:3000/health > /dev/null; then
               break
             fi
+
+            if ! kill -0 "$service_pid" 2>/dev/null; then
+              echo "Service exited during startup:"
+              cat service.log
+              exit 1
+            fi
+
             sleep 1
           done
-          curl --fail --silent http://127.0.0.1:3000/health > /dev/null
+
+          if ! curl --fail --silent http://127.0.0.1:3000/health > /dev/null; then
+            echo "Service failed health check:"
+            cat service.log
+            exit 1
+          fi
+
           npm run test:contract
           npm run verify:idempotency
           npm run verify:inspections
