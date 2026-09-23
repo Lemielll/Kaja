@@ -9,6 +9,8 @@
  */
 
 const crypto = require('crypto');
+const { tokenFor } = require('../helpers/tokens');
+
 const baseUrl = (process.env.BASE_URL || 'http://127.0.0.1:4010/v1').replace(/\/+$/, '');
 const idempotencyKey = crypto.randomUUID();
 const body = {
@@ -21,12 +23,13 @@ const body = {
   currency: 'USD',
 };
 
-async function createRental(payload) {
+async function createRental(payload, token) {
   const response = await fetch(`${baseUrl}/rentals`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
       'idempotency-key': idempotencyKey,
+      'authorization': `Bearer ${token}`,
     },
     body: JSON.stringify(payload),
   });
@@ -38,7 +41,14 @@ async function run() {
   console.log(`Idempotency target: ${baseUrl}`);
   console.log(`Idempotency-Key: ${idempotencyKey}`);
 
-  const first = await createRental(body);
+  // Generate token otorisasi lokal dengan scope yang dibutuhkan
+  const token = await tokenFor('svc_idempotency_check', [
+    'rentals:write',
+    'rentals:read',
+    'equipments:read',
+  ]);
+
+  const first = await createRental(body, token);
   if (first.response.status !== 201) {
     throw new Error(`first POST /rentals returned ${first.response.status}, expected 201`);
   }
@@ -46,7 +56,7 @@ async function run() {
     throw new Error('first POST /rentals response is missing the resource Location header');
   }
 
-  const replay = await createRental(body);
+  const replay = await createRental(body, token);
   if (replay.response.status !== 201 || replay.body?.id !== first.body?.id) {
     throw new Error('identical replay did not return the original 201 rental response');
   }
@@ -55,7 +65,7 @@ async function run() {
   }
 
   const differentBody = { ...body, depositAmount: 150001 };
-  const conflict = await createRental(differentBody);
+  const conflict = await createRental(differentBody, token);
   if (conflict.response.status !== 409 || conflict.body?.type !== 'https://api.heavyrental.co/problems/idempotency-key-reuse') {
     throw new Error('same key with a different body did not return the required 409 idempotency-key-reuse problem');
   }
