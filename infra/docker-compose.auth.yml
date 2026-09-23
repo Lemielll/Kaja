@@ -1,0 +1,25 @@
+version: '3.9'
+
+services:
+  auth:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: kaja-keycloak
+    command: start-dev
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
+      KC_HTTP_PORT: 8080
+    ports:
+      - "8080:8080"
+    networks:
+      - kaja-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  kaja-network:
+    driver: bridge
