@@ -1,6 +1,6 @@
 # ADR 0003: Authentication and Access Control
 
-**Status:** Draft (menunggu finalisasi scope dan keputusan client dari tim)
+**Status:** Draft (keputusan client finalized; implementasi role lain masih berjalan)
 **Date:** 2026-09-23  
 **Deciders:** Tim Kaja (Heavy Equipment Rental System)
 
@@ -85,6 +85,12 @@ Scope menggunakan format `resource:action` sesuai kontrak Step 2.
 - Reuse Detection: Enabled (akan diverifikasi Ajie di Step 10)
 - Lifetime: 30 hari
 
+**Testing strategy:**
+- Automated token testing menggunakan local Keycloak realm dan client `test-cli`.
+- Direct Grant hanya aktif pada `test-cli` untuk testing lokal/CI, bukan pada
+	`web-app` production.
+- Evidence rotation dan reuse detection dijalankan terhadap local Keycloak.
+
 ### 6. Client Classification
 
 Klasifikasi ditentukan berdasarkan apakah pengguna aplikasi dapat membaca nilai
@@ -95,8 +101,28 @@ tersebut dapat diekstrak dari browser, APK, atau perangkat pengguna.
 |--------|----------------|------------|-----------------|--------|
 | Web | Public | Authorization Code + PKCE (S256) | No | Decided |
 | Mobile | Public | Authorization Code + PKCE (S256) | No | Decided |
-| Device | Public jika digunakan langsung oleh user; confidential jika hanya backend yang mengaksesnya | PKCE atau Client Credentials sesuai deployment | Depends on deployment | Needs confirmation |
-| MCP | Confidential jika berjalan sebagai server-side service | Client Credentials | Yes | Needs confirmation |
+| Device | Public | Authorization Code + PKCE (S256) | No | Decided |
+| MCP | Confidential | Client Credentials | Yes | Decided |
+
+Keputusan Client Owner:
+
+- Device diperlakukan sebagai public client karena aplikasi/perangkat yang
+	digunakan langsung user tidak dapat menyembunyikan secret.
+- MCP diperlakukan sebagai confidential client karena diasumsikan berjalan
+	sebagai service server-side. Secret wajib berada di secret manager.
+- Device menggunakan alur PKCE karena client yang dapat diinspeksi user tidak
+	dapat menyembunyikan secret.
+- MCP menggunakan Client Credentials karena diasumsikan berjalan sebagai
+	service server-side.
+
+Redirect URI konfigurasi awal:
+
+- Web callback: `http://localhost:3000/callback`
+- Web silent renew: `http://localhost:3000/silent-renew`
+- Mobile callback yang diusulkan: `com.kaja.mobile:/oauth/callback`
+
+URI Mobile ditetapkan sebagai `com.kaja.mobile:/oauth/callback`. Semua URI wajib
+didaftarkan sebagai exact match.
 
 Aturan untuk public client:
 
@@ -157,7 +183,8 @@ Password untuk test user disimpan di `.env` (tidak di-commit).
 
 - [x] Klasifikasi Web dan Mobile sebagai public client
 - [x] Aturan PKCE, `state`, redirect URI, dan penyimpanan token didokumentasikan
-- [ ] Konfirmasi klasifikasi Device dan MCP
+- [x] Menetapkan klasifikasi final Device dan MCP
+- [x] Menetapkan redirect URI Web dan Mobile
 - [x] Evidence refresh token rotation
 - [x] Evidence reuse detection
 

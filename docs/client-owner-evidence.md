@@ -7,10 +7,10 @@ refresh token, password, client secret, atau nilai `code_verifier` asli ke repos
 
 | Client | Classification | Flow | Holds a secret? | Redirect URI / deployment | Confirmation |
 |---|---|---|---|---|---|
-| Web | Public | Authorization Code + PKCE (S256) | No | Isi redirect URI exact match | Pending team review |
-| Mobile | Public | Authorization Code + PKCE (S256) | No | Isi redirect URI exact match | Pending team review |
-| Device | Public or confidential | PKCE or Client Credentials | Depends on deployment | Confirm whether user can inspect it | Pending architecture decision |
-| MCP | Confidential if server-side | Client Credentials | Yes | Server-side deployment only | Pending architecture decision |
+| Web | Public | Authorization Code + PKCE (S256) | No | `http://localhost:3000/callback`; `http://localhost:3000/silent-renew` | Configured in seed script |
+| Mobile | Public | Authorization Code + PKCE (S256) | No | `com.kaja.mobile:/oauth/callback` | Decided |
+| Device | Public | Authorization Code + PKCE (S256) | No | Direct-user deployment | Decided |
+| MCP | Confidential | Client Credentials | Yes | Server-side deployment | Decided |
 
 ## 2. Client Security Checklist
 
@@ -74,8 +74,8 @@ Keycloak aktif:
 
 ## 5. Open Decisions
 
-- [ ] Confirm whether Device communicates directly with the API or through a trusted backend.
-- [ ] Confirm whether MCP is deployed as a server-side integration.
-- [ ] Confirm exact redirect URIs for Web and Mobile.
-- [ ] Confirm whether automated tests use local signing keys or a Keycloak test realm.
+- [x] Decide Device as a direct-user public client using PKCE.
+- [x] Decide MCP as a server-side confidential client using Client Credentials.
+- [x] Set Mobile redirect URI to `com.kaja.mobile:/oauth/callback`.
+- [x] Confirm automated tests use the local Keycloak realm and `test-cli`.
 - [x] Replace pending evidence values after the Service Owner enables rotation and reuse detection.
