@@ -8,6 +8,34 @@ Health check: [https://kaja-service-7dp9.onrender.com/health](https://kaja-servi
 
 API base URL: `https://kaja-service-7dp9.onrender.com/v1`
 
+## Authentication scope vocabulary (Session 4)
+
+The service uses OAuth scopes as capability groups, not as a separate scope for
+each endpoint. Scope checks answer whether a principal may perform an action;
+object ownership checks remain a separate layer and return the same `404` for a
+missing object or an object owned by another principal.
+
+| Scope | Capability | Contractor | Warehouse admin | Field operator |
+| :---- | :---------- | :---------: | :-------------: | :-------------: |
+| `equipment:read` | Read equipment availability and details for scheduling. | Yes | Yes | No |
+| `rentals:read` | Read rental records visible to the principal's tenant or assignment. | Yes | Yes | No |
+| `rentals:write` | Create a rental contract. | Yes | No | No |
+| `inspections:write` | Submit a field inspection for an assigned rental. | No | No | Yes |
+
+### Actor capabilities
+
+- **Contractor**: browse equipment, read owned rental records, and create a
+	rental contract.
+- **Warehouse admin**: browse equipment and read rental records in the active
+	tenant context for warehouse workflows.
+- **Field operator**: submit inspections for assigned rentals. Inspection
+	object access is constrained by assignment and ownership checks.
+
+The vocabulary is intentionally limited to these four scopes. A future
+operation such as rental approval must add or revise a capability here before
+its route is protected; it must not silently reuse `rentals:write` for a
+different business action.
+
 ## Operations Tracking (A.3)
 
 | Operation                           | Served by | Integration verification |
