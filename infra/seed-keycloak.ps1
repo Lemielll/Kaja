@@ -129,17 +129,20 @@ foreach ($scopeName in $scopes) {
     }
 }
 
-# Create web-app client
-Write-Host "5. Creating client 'web-app'..." -ForegroundColor Green
+# Create web-app client (production)
+Write-Host "5. Creating client 'web-app' (production)..." -ForegroundColor Green
 try {
     $clientBody = @{
         clientId = "web-app"
-        name = "Web Application"
+        name = "Web Application (Production)"
         enabled = $true
         publicClient = $true
         standardFlowEnabled = $true
-        directAccessGrantsEnabled = $true
-        redirectUris = @("http://localhost:3000/*")
+        directAccessGrantsEnabled = $false
+        redirectUris = @(
+            "http://localhost:3000/callback",
+            "http://localhost:3000/silent-renew"
+        )
         webOrigins = @("http://localhost:3000")
         attributes = @{
             "pkce.code.challenge.method" = "S256"
@@ -148,6 +151,28 @@ try {
 
     Invoke-RestMethod -Uri "$KeycloakUrl/admin/realms/kaja/clients" `
         -Method Post -Headers $headers -Body $clientBody
+    Write-Host "  OK" -ForegroundColor Green
+} catch {
+    if ($_.Exception.Response.StatusCode -eq 409) {
+        Write-Host "  Already exists" -ForegroundColor Yellow
+    }
+}
+
+# Create test-cli client (testing only)
+Write-Host "6. Creating client 'test-cli' (automated testing)..." -ForegroundColor Green
+try {
+    $testClientBody = @{
+        clientId = "test-cli"
+        name = "Test CLI (Automated Testing Only)"
+        enabled = $true
+        publicClient = $true
+        standardFlowEnabled = $false
+        directAccessGrantsEnabled = $true
+        description = "Used for automated contract tests. NOT for production."
+    } | ConvertTo-Json -Depth 10
+
+    Invoke-RestMethod -Uri "$KeycloakUrl/admin/realms/kaja/clients" `
+        -Method Post -Headers $headers -Body $testClientBody
     Write-Host "  OK`n" -ForegroundColor Green
 } catch {
     if ($_.Exception.Response.StatusCode -eq 409) {
@@ -155,12 +180,16 @@ try {
     }
 }
 
-# Assign scopes to web-app
+# Assign scopes to both clients
 $clients = Invoke-RestMethod -Uri "$KeycloakUrl/admin/realms/kaja/clients?clientId=web-app" `
     -Method Get -Headers $headers
 $webAppId = $clients[0].id
 
-Write-Host "6. Assigning scopes..." -ForegroundColor Green
+$testClients = Invoke-RestMethod -Uri "$KeycloakUrl/admin/realms/kaja/clients?clientId=test-cli" `
+    -Method Get -Headers $headers
+$testCliId = $testClients[0].id
+
+Write-Host "7. Assigning scopes to web-app..." -ForegroundColor Green
 foreach ($scopeName in $scopeIds.Keys) {
     $scopeId = $scopeIds[$scopeName]
     try {
@@ -171,10 +200,22 @@ foreach ($scopeName in $scopeIds.Keys) {
         # Ignore errors
     }
 }
+
+Write-Host "8. Assigning scopes to test-cli..." -ForegroundColor Green
+foreach ($scopeName in $scopeIds.Keys) {
+    $scopeId = $scopeIds[$scopeName]
+    try {
+        Invoke-RestMethod -Uri "$KeycloakUrl/admin/realms/kaja/clients/$testCliId/optional-client-scopes/$scopeId" `
+            -Method Put -Headers $headers
+        Write-Host "  Assigned: $scopeName" -ForegroundColor Green
+    } catch {
+        # Ignore errors
+    }
+}
 Write-Host ""
 
 # Create roles
-Write-Host "7. Creating roles..." -ForegroundColor Green
+Write-Host "9. Creating roles..." -ForegroundColor Green
 $roles = @("contractor", "warehouse-admin", "field-operator")
 foreach ($roleName in $roles) {
     try {
@@ -191,7 +232,7 @@ foreach ($roleName in $roles) {
 Write-Host ""
 
 # Create users
-Write-Host "8. Creating users..." -ForegroundColor Green
+Write-Host "10. Creating users..." -ForegroundColor Green
 $users = @(
     @{ username = "contractor-a"; email = "contractor-a@test.local"; firstName = "Contractor"; lastName = "Alpha"; role = "contractor" }
     @{ username = "contractor-b"; email = "contractor-b@test.local"; firstName = "Contractor"; lastName = "Beta"; role = "contractor" }
@@ -266,14 +307,14 @@ foreach ($user in $users) {
 }
 Write-Host ""
 
-# Test token
-Write-Host "9. Testing token..." -ForegroundColor Green
+# Test token with test-cli
+Write-Host "11. Testing token with test-cli..." -ForegroundColor Green
 try {
     $testResponse = Invoke-RestMethod -Uri "$KeycloakUrl/realms/kaja/protocol/openid-connect/token" `
         -Method Post `
         -Body @{
             grant_type = "password"
-            client_id = "web-app"
+            client_id = "test-cli"
             username = "contractor-a"
             password = "test123"
             scope = "equipment:read rentals:read"
@@ -292,8 +333,17 @@ Write-Host "  OIDC_ISSUER=$KeycloakUrl/realms/kaja"
 Write-Host "  OIDC_JWKS_URI=$KeycloakUrl/realms/kaja/protocol/openid-connect/certs"
 Write-Host "  OIDC_AUDIENCE=web-app"
 Write-Host ""
-Write-Host "Test users (password: test123):"
+Write-Host "Clients:" -ForegroundColor White
+Write-Host "  web-app       - Production client (Authorization Code + PKCE, NO direct grant)"
+Write-Host "  test-cli      - Test client (Direct Grant enabled for automated tests)"
+Write-Host ""
+Write-Host "Test users (password: test123):" -ForegroundColor White
 Write-Host "  contractor-a, contractor-b"
 Write-Host "  warehouse-admin-a, warehouse-admin-b"
 Write-Host "  field-operator-a, field-operator-b"
+Write-Host ""
+Write-Host "Security notes:" -ForegroundColor Yellow
+Write-Host "  ✓ web-app uses exact redirect URIs (no wildcards)"
+Write-Host "  ✓ Direct Grant disabled on production client"
+Write-Host "  ✓ test-cli only for automated testing"
 Write-Host ""

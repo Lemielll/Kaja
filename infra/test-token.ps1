@@ -16,7 +16,7 @@ try {
         -Method Post `
         -Body @{
             grant_type = "password"
-            client_id = "web-app"
+            client_id = "test-cli"
             username = $Username
             password = $Password
             scope = "equipment:read rentals:read rentals:write inspections:write"
@@ -24,7 +24,8 @@ try {
         -ContentType "application/x-www-form-urlencoded"
     
     $TOKEN = $response.access_token
-    Write-Host "Token obtained successfully`n" -ForegroundColor Green
+    Write-Host "Token obtained successfully" -ForegroundColor Green
+    Write-Host "Token length: $($TOKEN.Length) characters`n" -ForegroundColor Gray
     
     # Decode JWT payload
     $parts = $TOKEN -split '\.'
@@ -39,16 +40,17 @@ try {
     $json = [System.Text.Encoding]::UTF8.GetString($bytes)
     $decoded = $json | ConvertFrom-Json
     
-    # Display decoded token
-    Write-Host "Token Payload:" -ForegroundColor White
+    # Display decoded token claims (safe to print)
+    Write-Host "Token Claims:" -ForegroundColor White
     Write-Host "  iss: $($decoded.iss)" -ForegroundColor Gray
     Write-Host "  aud: $($decoded.aud)" -ForegroundColor Gray
     Write-Host "  sub: $($decoded.sub)" -ForegroundColor Gray
     Write-Host "  scope: $($decoded.scope)" -ForegroundColor Gray
+    Write-Host "  exp: $($decoded.exp) ($(([DateTimeOffset]::FromUnixTimeSeconds($decoded.exp).DateTime).ToString('yyyy-MM-dd HH:mm:ss')))" -ForegroundColor Gray
     Write-Host ""
     
-    Write-Host "Full Access Token:" -ForegroundColor White
-    Write-Host $TOKEN -ForegroundColor Yellow
+    Write-Host "Note: Full token not displayed for security reasons." -ForegroundColor Yellow
+    Write-Host "Token is available in `$TOKEN variable for testing." -ForegroundColor Yellow
     Write-Host ""
     
 } catch {
