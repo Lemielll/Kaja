@@ -50,6 +50,14 @@ problem yang telah ditetapkan kontrak.
 
 ### Test procedure
 
+Runner PowerShell yang menyimpan token hanya di memory tersedia di
+`infra/test-refresh-rotation.ps1`. Jalankan dari root repository setelah
+Keycloak aktif:
+
+```powershell
+.\infra\test-refresh-rotation.ps1
+```
+
 1. Login dan simpan refresh token pertama sebagai `RT1` di environment variable lokal.
 2. Tukarkan `RT1` untuk access token baru dan refresh token kedua `RT2`.
 3. Catat bahwa `RT2` berbeda dari `RT1`.
@@ -60,9 +68,9 @@ problem yang telah ditetapkan kontrak.
 
 | Check | Expected | Actual | Result | Date |
 |---|---|---|---|---|
-| `RT2 != RT1` | True | Pending Keycloak | Pending | 2026-09-23 |
-| Reuse `RT1` | Rejected | Pending Keycloak | Pending | 2026-09-23 |
-| Reuse `RT2` after `RT1` detection | Rejected | Pending Keycloak | Pending | 2026-09-23 |
+| `RT2 != RT1` | True | True | PASS | 2026-09-23 |
+| Reuse `RT1` | Rejected | HTTP 400 | PASS | 2026-09-23 |
+| Reuse `RT2` after `RT1` detection | Rejected | HTTP 400 | PASS | 2026-09-23 |
 
 ## 5. Open Decisions
 
@@ -70,4 +78,4 @@ problem yang telah ditetapkan kontrak.
 - [ ] Confirm whether MCP is deployed as a server-side integration.
 - [ ] Confirm exact redirect URIs for Web and Mobile.
 - [ ] Confirm whether automated tests use local signing keys or a Keycloak test realm.
-- [ ] Replace pending evidence values after the Service Owner enables rotation and reuse detection.
+- [x] Replace pending evidence values after the Service Owner enables rotation and reuse detection.

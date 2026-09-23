@@ -158,8 +158,8 @@ Password untuk test user disimpan di `.env` (tidak di-commit).
 - [x] Klasifikasi Web dan Mobile sebagai public client
 - [x] Aturan PKCE, `state`, redirect URI, dan penyimpanan token didokumentasikan
 - [ ] Konfirmasi klasifikasi Device dan MCP
-- [ ] Evidence refresh token rotation
-- [ ] Evidence reuse detection
+- [x] Evidence refresh token rotation
+- [x] Evidence reuse detection
 
 ### Contract Owner (Dhafin) - Step 2, 4
 
