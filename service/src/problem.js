@@ -147,6 +147,55 @@ function unprocessable(res, subtype, title, detail, instance, extra = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// 401 Unauthorized
+// Session 4: Authentication Layer
+// ---------------------------------------------------------------------------
+
+/**
+ * Sends a 401 Unauthorized problem response.
+ * Use when the access token is missing, invalid, or expired.
+ *
+ * @param {import('express').Response} res
+ * @param {string} error - OAuth 2.0 error code (e.g., 'invalid_token')
+ */
+function unauthorized(res, error = 'invalid_token') {
+  res.set('WWW-Authenticate', `Bearer error="${error}"`);
+  const body = buildProblem({
+    type: `${BASE_PROBLEM_URI}/unauthenticated`,
+    title: 'Unauthenticated',
+    status: 401,
+    detail: 'Valid authentication credentials are required.',
+    instance: res.req?.originalUrl ?? '/',
+  });
+  return res.status(401).type('application/problem+json').json(body);
+}
+
+// ---------------------------------------------------------------------------
+// 403 Forbidden
+// Session 4: Authorization Layer
+// ---------------------------------------------------------------------------
+
+/**
+ * Sends a 403 Forbidden problem response.
+ * Use when the token is valid but lacks required scopes or permissions.
+ *
+ * @param {import('express').Response} res
+ * @param {string[]} needed - Array of scopes that would grant access
+ */
+function forbidden(res, needed = []) {
+  const scopeList = needed.join(' ');
+  res.set('WWW-Authenticate', `Bearer error="insufficient_scope", scope="${scopeList}"`);
+  const body = buildProblem({
+    type: `${BASE_PROBLEM_URI}/insufficient-scope`,
+    title: 'Insufficient scope',
+    status: 403,
+    detail: `This operation requires one or more of the following scopes: ${scopeList}`,
+    instance: res.req?.originalUrl ?? '/',
+  });
+  return res.status(403).type('application/problem+json').json(body);
+}
+
+// ---------------------------------------------------------------------------
 // 500 Internal Server Error (safety net — not in openapi.yaml contract)
 // ---------------------------------------------------------------------------
 
@@ -171,6 +220,8 @@ function internalError(res, instance) {
 module.exports = {
   buildProblem,
   badRequest,
+  unauthorized,
+  forbidden,
   notFound,
   conflict,
   unprocessable,

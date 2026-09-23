@@ -5,22 +5,14 @@
  * Coordinates configuration validation, health checks, routing assembly, and lifecycle shutdown.
  */
 
-require('dotenv').config();
 const express = require('express');
+const config = require('./config'); // Config validates env vars on load
 const db = require('./store/db');
 const problem = require('./problem');
+const { authenticate } = require('./auth/authenticate');
+const logger = require('./logger');
 
 const app = express();
-
-// 1. Startup Environment Check (Session 3: A.10)
-// Service must refuse to start if a required environment variable is missing.
-const requiredEnvs = ['PORT', 'DATABASE_URL'];
-const missingEnvs = requiredEnvs.filter((env) => !process.env[env]);
-
-if (missingEnvs.length > 0) {
-  console.error(`[FATAL STARTUP] Missing required environment variables: ${missingEnvs.join(', ')}`);
-  process.exit(1);
-}
 
 // Invalid JSON is an input error, not an internal server error.  Keeping this
 // middleware before every route also guarantees the contract error media type.
@@ -28,11 +20,19 @@ app.use(express.json());
 
 // 2. Health Check Endpoint (Session 3: A.10.4)
 // MUST return 200 without checking any external dependency or database.
+// Health endpoint is public and does NOT require authentication.
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'pass' });
 });
 
-// 3. Mount Routes (Separation of concerns: routes are defined in routes/)
+// 3. Authentication Middleware (Session 4: Layer 1)
+// Apply authentication to all routes except /health.
+// If token is valid → req.principal is set
+// If token is invalid → 401 response
+// If no token → req.principal = null (route decides if anonymous allowed)
+app.use(authenticate);
+
+// 4. Mount Routes (Separation of concerns: routes are defined in routes/)
 try {
   const routes = require('./routes');
   app.use('/v1', routes);
@@ -70,12 +70,13 @@ app.use((err, req, res, next) => {
 
   // Logging the error is useful to operators, but the public response remains
   // the stable RFC 9457 representation defined by `problem.internalError`.
-  console.error(`[UNHANDLED ERROR] ${req.method} ${req.originalUrl}: ${err.message}`);
+  // CRITICAL: Only log method, path, and error message - NOT headers or full request
+  logger.error({ method: req.method, path: req.originalUrl, error: err.message }, 'unhandled error');
   return problem.internalError(res, req.originalUrl);
 });
 
-// 4. Server Lifecycle & Graceful Shutdown
-const PORT = process.env.PORT || 4010;
+// 5. Server Lifecycle & Graceful Shutdown
+const PORT = config.port;
 
 let server;
 if (require.main === module) {
