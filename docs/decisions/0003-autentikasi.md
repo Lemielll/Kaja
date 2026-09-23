@@ -27,17 +27,17 @@ Session 4 membutuhkan implementasi authentication dan authorization untuk melind
 - Admin console: `http://localhost:8080`
 - File konfigurasi: `infra/docker-compose.auth.yml`
 
-### 2. Cara Test Mendapat Token
+### 2. Cara Test Mendapat Token (Step 11a)
 
-**Pilihan:** Direct Grant (Resource Owner Password Credentials) untuk automated testing
+**Pilihan:** Local test key (RS256 ephemeral keypair + in-memory JWKS server) via `tests/helpers/tokens.js` untuk automated testing & CI
 
 **Alasan:**
-- Memudahkan automated test tanpa perlu browser interaction
-- Cukup untuk environment development dan CI
-- Test user credentials dapat di-manage di Keycloak
-- Hafidz (Integration Owner) akan menggunakan ini di Step 11 untuk contract test
+- CI dan unit/integration testing tidak membutuhkan dependensi jaringan ke Keycloak (`CI needs no network; tests are fast and not flaky`).
+- Kunci privat hanya dibuat di dalam proses testing dan tidak pernah terekspos ke lingkungan produksi.
+- OIDC issuer dan audience diatur khusus untuk test environment (`https://test.local/` dan `kaja-api`), sehingga token test ditolak oleh production service.
+- Pengujian autentikasi Keycloak live tetap diverifikasi terpisah pada Step 10 melalui `infra/test-refresh-rotation.ps1`.
 
-**Catatan:** Production client akan menggunakan Authorization Code + PKCE, bukan direct grant.
+**Catatan:** Production client menggunakan Authorization Code + PKCE (S256), sedangkan server/job menggunakan Client Credentials.
 
 ### 3. Domain Actors
 
@@ -168,9 +168,22 @@ Password untuk test user disimpan di `.env` (tidak di-commit).
 
 ### Service/Integration Owner - Step 7, 8, 11
 
-- [ ] Layer 2 authorization middleware (`require-scope.js`)
-- [ ] Layer 3 ownership predicates
-- [ ] Automated authorization tests
+- [x] Layer 2 authorization middleware (`require-scope.js`)
+- [x] Layer 3 ownership predicates (`ownership.js`)
+- [x] Automated authorization tests (`tests/authz/authz.test.js`)
+- [x] Ephemeral JWKS test server & token signer (`tests/helpers/tokens.js`)
+- [x] Regression update on contract test suite runner (Step 12b)
+
+#### Step 11 Automated Boundary Test Evidence:
+
+| Test Case | Boundary Tested | Expected Status | Actual Status | Result |
+|---|---|---|---|---|
+| `TC-AUTHZ-01` | Contractor A reads Contractor B's rental | `404 Not Found` (anti-enumeration) | `404 Not Found` | PASS |
+| `TC-AUTHZ-02` | Operator B submits inspection with Operator A's identity | `404 Not Found` & no DB mutation | `404 Not Found` (0 mutations) | PASS |
+| `TC-AUTHZ-03` | Contractor calls operator-only inspection endpoint | `403 Forbidden` (`insufficient_scope`) | `403 Forbidden` | PASS |
+| `TC-AUTHZ-04` | Warehouse Admin A reads Warehouse B's rental | `404 Not Found` | `404 Not Found` | PASS |
+| `TC-AUTHZ-05` | Request without token / tampered token | `401 Unauthorized` (`invalid_token`) | `401 Unauthorized` | PASS |
+| `TC-AUTHZ-06` | Public health check (`GET /health`) | `200 OK` (no token needed) | `200 OK` | PASS |
 
 ## Consequences
 
