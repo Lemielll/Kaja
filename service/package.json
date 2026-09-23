@@ -7,7 +7,7 @@
     "start": "node src/app.js",
     "dev": "node --watch src/app.js",
     "test": "node tests/contract/client_contract_unit.js && node tests/contract/service_store_unit.js && node tests/contract/route_inspection_unit.js && node tests/authz/authz.test.js",
-    "test:contract": "node tests/contract/contract_check.js",
+    "test:contract": "node tests/contract/contract_with_auth.js",
     "test:client-contract": "node tests/contract/client_contract_unit.js",
     "test:store": "node tests/contract/service_store_unit.js",
     "test:routes": "node tests/contract/route_inspection_unit.js",
