@@ -3,31 +3,43 @@
 /**
  * Inspection Persistence & Business Rules Conformance Verification
  * File: service/tests/contract/verify_inspections.js
- *
- * Verifies stateful inspection creation, server-side idempotency replay,
- * duplicate conflict detection (409), and business rule enforcement (422).
- *
- * Usage:
- *   BASE_URL=http://127.0.0.1:4010/v1 node tests/contract/verify_inspections.js
  */
 
 const crypto = require('crypto');
 const { tokenFor } = require('../helpers/tokens');
 
 const baseUrl = (process.env.BASE_URL || 'http://127.0.0.1:4010/v1').replace(/\/+$/, '');
-
-const rentalId = process.env.RENTAL_ID || 'rnt_3MnB7xP';
 const equipmentId = process.env.EQUIPMENT_ID || 'eqp_8X2kAB';
-const idempotencyKey = crypto.randomUUID();
 
-const validBody = {
-  equipmentId: equipmentId,
-  operatorId: 'opr_84Qm1a',
-  status: 'pass',
-  inspectedAt: '2026-09-17T14:30:00Z',
-  notes: 'Field test inspection passed, engine operating normally.',
-  defectSummary: 'No critical defects.',
-};
+async function createParentRental(token) {
+  const idempotencyKey = crypto.randomUUID();
+  const body = {
+    equipmentId: equipmentId,
+    contractorId: 'ctr_72Xp9C',
+    warehouseAdminId: 'adm_19Lq2f',
+    startTime: '2026-09-15T08:00:00Z',
+    endTime: '2026-09-18T17:00:00Z',
+    depositAmount: 150000,
+    currency: 'USD',
+  };
+
+  const response = await fetch(`${baseUrl}/rentals`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'idempotency-key': idempotencyKey,
+      'authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : null;
+  if (response.status !== 201 || !data?.id) {
+    throw new Error(`Failed to create parent rental for inspection test: status ${response.status}`);
+  }
+  return data.id;
+}
 
 async function sendInspection(targetRentalId, payload, key, token) {
   const response = await fetch(`${baseUrl}/rentals/${targetRentalId}/inspections`, {
@@ -45,14 +57,29 @@ async function sendInspection(targetRentalId, payload, key, token) {
 
 async function run() {
   console.log(`[TEST INSPECTIONS] Target: ${baseUrl}`);
-  console.log(`[TEST INSPECTIONS] Rental: ${rentalId} | Idempotency-Key: ${idempotencyKey}`);
 
-  // Generate token otorisasi lokal dengan scope yang dibutuhkan
+  // Generate token otorisasi lokal dengan scope lengkap
   const token = await tokenFor('svc_inspection_check', [
-    'inspections:write',
+    'rentals:write',
     'rentals:read',
+    'inspections:write',
     'equipments:read',
   ]);
+
+  // Buat parent rental secara dinamis jika RENTAL_ID tidak ditentukan dari env
+  const rentalId = process.env.RENTAL_ID || (await createParentRental(token));
+  const idempotencyKey = crypto.randomUUID();
+
+  console.log(`[TEST INSPECTIONS] Rental: ${rentalId} | Idempotency-Key: ${idempotencyKey}`);
+
+  const validBody = {
+    equipmentId: equipmentId,
+    operatorId: 'opr_84Qm1a',
+    status: 'pass',
+    inspectedAt: '2026-09-17T14:30:00Z',
+    notes: 'Field test inspection passed, engine operating normally.',
+    defectSummary: 'No critical defects.',
+  };
 
   // 1. Initial creation (201 Created)
   const first = await sendInspection(rentalId, validBody, idempotencyKey, token);
