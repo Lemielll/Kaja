@@ -10,12 +10,13 @@ const { tokenFor } = require('../helpers/tokens');
 
 const baseUrl = (process.env.BASE_URL || 'http://127.0.0.1:4010/v1').replace(/\/+$/, '');
 const equipmentId = process.env.EQUIPMENT_ID || 'eqp_8X2kAB';
+const contractorId = 'ctr_72Xp9C';
 
 async function createParentRental(token) {
   const idempotencyKey = crypto.randomUUID();
   const body = {
     equipmentId: equipmentId,
-    contractorId: 'ctr_72Xp9C',
+    contractorId: contractorId,
     warehouseAdminId: 'adm_19Lq2f',
     startTime: '2026-09-15T08:00:00Z',
     endTime: '2026-09-18T17:00:00Z',
@@ -58,8 +59,8 @@ async function sendInspection(targetRentalId, payload, key, token) {
 async function run() {
   console.log(`[TEST INSPECTIONS] Target: ${baseUrl}`);
 
-  // Generate token otorisasi lokal dengan scope lengkap
-  const token = await tokenFor('svc_inspection_check', [
+  // Gunakan contractorId ('ctr_72Xp9C') sebagai subject token agar lolos Layer 3 Ownership Check
+  const token = await tokenFor(contractorId, [
     'rentals:write',
     'rentals:read',
     'inspections:write',
@@ -129,7 +130,7 @@ async function run() {
   const mismatchKey = crypto.randomUUID();
   const mismatchBody = {
     ...validBody,
-    equipmentId: 'eqp_9Y3lBC', // different equipment from rental
+    equipmentId: 'eqp_9Y3lBC',
     inspectedAt: '2026-09-17T16:00:00Z',
   };
   const ruleViolation = await sendInspection(rentalId, mismatchBody, mismatchKey, token);
