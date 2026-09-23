@@ -1,6 +1,6 @@
 # ADR 0003: Authentication and Access Control
 
-**Status:** Draft (menunggu finalisasi scope dari Contract Owner)  
+**Status:** Draft (menunggu finalisasi scope dan keputusan client dari tim)
 **Date:** 2026-09-23  
 **Deciders:** Tim Kaja (Heavy Equipment Rental System)
 
@@ -87,22 +87,45 @@ Scope menggunakan format `resource:action` sesuai kontrak Step 2.
 
 ### 6. Client Classification
 
-**Public Client (web-app):**
-- Untuk web dan mobile application
-- No client secret
-- PKCE required (S256)
-- Authorization Code flow
-- Valid redirect URIs (full match, no wildcard)
-- Direct access grants: OFF
+Klasifikasi ditentukan berdasarkan apakah pengguna aplikasi dapat membaca nilai
+yang tersimpan di aplikasi. Client public tidak boleh diberi secret karena nilai
+tersebut dapat diekstrak dari browser, APK, atau perangkat pengguna.
 
-**Confidential Client (background-jobs):**
-- Untuk scheduled jobs atau service-to-service
-- Client authentication: ON
-- Service account: ON
-- Client secret disimpan di secret manager (TIDAK di repo)
-- Standard flow: OFF
+| Client | Classification | OAuth flow | Holds a secret? | Status |
+|--------|----------------|------------|-----------------|--------|
+| Web | Public | Authorization Code + PKCE (S256) | No | Decided |
+| Mobile | Public | Authorization Code + PKCE (S256) | No | Decided |
+| Device | Public jika digunakan langsung oleh user; confidential jika hanya backend yang mengaksesnya | PKCE atau Client Credentials sesuai deployment | Depends on deployment | Needs confirmation |
+| MCP | Confidential jika berjalan sebagai server-side service | Client Credentials | Yes | Needs confirmation |
 
-### 7. Test Users
+Aturan untuk public client:
+
+- `code_verifier` acak dibuat sebelum login; hanya `code_challenge` S256 dikirim ke authorization server.
+- `state` dibuat terpisah dari PKCE untuk melindungi callback dari request yang tidak berkaitan.
+- Redirect URI harus dicocokkan penuh tanpa wildcard.
+- Direct access grants/password flow: OFF untuk client produksi.
+- Access token tidak boleh dimasukkan ke URL, `localStorage`, log, atau pesan error.
+
+Aturan untuk confidential client:
+
+- Client authentication dan service account: ON bila memang dibutuhkan.
+- Client secret hanya disimpan di secret manager dan tidak boleh masuk repository.
+- Standard browser flow: OFF untuk background job yang hanya memakai Client Credentials.
+
+### 7. Token Storage by Platform
+
+| Platform | Access token | Refresh token | Catatan |
+|----------|--------------|---------------|---------|
+| Browser | Memory aplikasi | Cookie `HttpOnly`, `Secure`, `SameSite` | Jangan gunakan `localStorage` atau URL |
+| Android | Memory aplikasi | Android Keystore / `EncryptedSharedPreferences` | Jangan hardcode secret di APK |
+| iOS | Memory aplikasi | Keychain | Jangan hardcode secret di aplikasi |
+| Server job / MCP | Memory proses seminimal mungkin | Secret manager atau mekanisme server-side yang disetujui | Jangan commit secret |
+
+Refresh token harus dipakai melalui rotation. Client wajib mengganti refresh
+token lama dengan token baru setiap refresh dan menghapus sesi lokal jika server
+menolak refresh karena reuse terdeteksi.
+
+### 8. Test Users
 
 6 test user untuk automated testing:
 
@@ -130,8 +153,11 @@ Password untuk test user disimpan di `.env` (tidak di-commit).
 - [ ] Layer 1 authentication implementation
 - [ ] Token redaction dari log
 
-### Integration Owner (Ajie) - Step 10
+### Client Owner - Step 1 dan Step 10
 
+- [x] Klasifikasi Web dan Mobile sebagai public client
+- [x] Aturan PKCE, `state`, redirect URI, dan penyimpanan token didokumentasikan
+- [ ] Konfirmasi klasifikasi Device dan MCP
 - [ ] Evidence refresh token rotation
 - [ ] Evidence reuse detection
 
@@ -140,7 +166,7 @@ Password untuk test user disimpan di `.env` (tidak di-commit).
 - [ ] Finalisasi scope vocabulary di `service/README.md`
 - [ ] Update OpenAPI dengan security scheme
 
-### Client Owner (Hafidz) - Step 7, 8, 11
+### Service/Integration Owner - Step 7, 8, 11
 
 - [ ] Layer 2 authorization middleware (`require-scope.js`)
 - [ ] Layer 3 ownership predicates
