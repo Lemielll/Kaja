@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Heavy Equipment Rental System API
-  version: 0.1.1
+  version: 1.0.0
   license:
     name: Apache License 2.0
     identifier: Apache-2.0
@@ -13,13 +13,17 @@ servers:
     description: Production
   - url: https://staging.heavyrental.co/v1
     description: Staging
-security: []
+security:
+  - oauth2: []
 paths:
   /equipments:
     get:
       operationId: listEquipments
       summary: List available equipment
       description: Returns equipment for scheduling and reservation. Clients may filter by status or equipment type.
+      security:
+        - oauth2:
+            - equipment:read
       parameters:
         - name: status
           in: query
@@ -58,11 +62,20 @@ paths:
                   $ref: '#/components/schemas/Equipment'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /rentals:
     get:
       operationId: listRentals
       summary: List rental records
       description: Returns rental records for the active tenant context. Filter results by status to support warehouse approval workflows.
+      security:
+        - oauth2:
+            - rentals:read
       parameters:
         - name: status
           in: query
@@ -90,10 +103,19 @@ paths:
                   $ref: '#/components/schemas/Rental'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
     post:
       operationId: createRental
       summary: Create rental contract
       description: Creates a rental contract after scheduling validation and digital deposit review.
+      security:
+        - oauth2:
+            - rentals:write
       parameters:
         - name: Idempotency-Key
           in: header
@@ -155,6 +177,12 @@ paths:
                 $ref: '#/components/schemas/Rental'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
         '422':
@@ -164,6 +192,9 @@ paths:
       operationId: getRentalById
       summary: Get rental by ID
       description: Returns the current status and details of a rental contract.
+      security:
+        - oauth2:
+            - rentals:read
       parameters:
         - name: id
           in: path
@@ -180,6 +211,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Rental'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
   /rentals/{id}/inspections:
@@ -187,6 +222,9 @@ paths:
       operationId: createInspection
       summary: Create inspection record
       description: Records a field inspection for received or returned equipment. Offline operators may submit later when connectivity is restored.
+      security:
+        - oauth2:
+            - inspections:write
       parameters:
         - name: id
           in: path
@@ -253,6 +291,10 @@ paths:
                 $ref: '#/components/schemas/Inspection'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
@@ -260,6 +302,26 @@ paths:
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
 components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      description: OAuth 2.0 / OpenID Connect authorization for API clients.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.heavyrental.co/realms/heavyrental/protocol/openid-connect/auth
+          tokenUrl: https://auth.heavyrental.co/realms/heavyrental/protocol/openid-connect/token
+          scopes:
+            equipment:read: Read equipment availability and details for scheduling.
+            rentals:read: Read rental records visible to the principal.
+            rentals:write: Create a rental contract.
+            inspections:write: Submit a field inspection for an assigned rental.
+        clientCredentials:
+          tokenUrl: https://auth.heavyrental.co/realms/heavyrental/protocol/openid-connect/token
+          scopes:
+            equipment:read: Read equipment availability and details for scheduling.
+            rentals:read: Read rental records visible to the principal.
+            rentals:write: Create a rental contract.
+            inspections:write: Submit a field inspection for an assigned rental.
   schemas:
     Equipment:
       type: object
@@ -471,6 +533,18 @@ components:
           pattern: '^[a-z]+_[A-Za-z0-9]{6,12}$'
           example: rnt_3MnB7xP
   responses:
+    Unauthorized:
+      description: Authentication is required or the supplied bearer token is invalid, expired, or otherwise unusable.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Forbidden:
+      description: The bearer token is valid, but it does not grant the scope required by this operation.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
     BadRequest:
       description: The request could not be processed because the client supplied invalid input. Missing or malformed required headers and body fields are treated as 400, not 422.
       content:
@@ -487,19 +561,19 @@ components:
                 detail: Idempotency-Key is required for this operation and must be a valid UUID.
                 instance: /v1/rentals
     NotFound:
-      description: The specified resource was not found.
+      description: The requested resource does not exist or is not visible to the caller. Both conditions return the same status and response body to prevent object ID enumeration.
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
           examples:
             resourceNotFound:
-              summary: Rental ID does not exist.
+              summary: Resource is missing or not visible to the caller.
               value:
                 type: https://api.heavyrental.co/problems/resource-not-found
                 title: Resource not found
                 status: 404
-                detail: Rental rnt_3MnB7xP does not exist.
+                detail: The requested rental could not be found.
                 instance: /v1/rentals/rnt_3MnB7xP
     Conflict:
       description: The request conflicts with the current state of the resource, including idempotency-key reuse or date conflicts.

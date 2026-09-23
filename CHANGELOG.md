@@ -1,5 +1,25 @@
 # Contract changelog
 
+## 2026-09-23 — Contract Owner: Authentication and authorization boundary
+
+Versi API: **0.1.1 → 1.0.0**. This is a breaking change because all existing
+`/v1` operations now require OAuth 2.0 authentication and the required scope.
+
+### Ditambahkan
+
+- OAuth 2.0 `oauth2` security scheme with four capability-based scopes:
+  `equipment:read`, `rentals:read`, `rentals:write`, and `inspections:write`.
+- Protected-by-default document security with explicit scope requirements on
+  every operation.
+- Reusable `401 Unauthorized` and `403 Forbidden` responses.
+- Consistent `404 Not Found` semantics for both missing and caller-inaccessible
+  objects, preventing object ID enumeration.
+
+### Konsekuensi kompatibilitas
+
+Clients must obtain and send a valid bearer token with the required scope. The
+public health endpoint is outside this API document and remains unauthenticated.
+
 ## 2026-09-10 — Contract Owner: Kontrak Final v0.1.1
 
 Versi API: **0.1.0 → 0.1.1** (final contract lock; tidak ada perubahan pada field wajib atau endpoint, hanya klarifikasi status code dan perbaikan contoh error yang sebelumnya ambigu).
