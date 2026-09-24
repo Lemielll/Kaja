@@ -57,7 +57,12 @@ function mayCreateInspection(principal, rental, body) {
     return false;
   }
 
-  // Caller cannot impersonate another operator
+  // Warehouse Admin may create inspection for rentals they administer
+  if (rental.warehouse_admin_id === principal.subject) {
+    return true;
+  }
+
+  // Field Operator: caller must be the declared operator
   if (body.operatorId !== principal.subject) {
     return false;
   }
