@@ -2,11 +2,11 @@
 
 ## Deployment
 
-Public service: [https://kaja-service-7dp9.onrender.com](https://kaja-service-7dp9.onrender.com)
+Public service: [https://kaja-service-0cns.onrender.com](https://kaja-service-0cns.onrender.com)
 
-Health check: [https://kaja-service-7dp9.onrender.com/health](https://kaja-service-7dp9.onrender.com/health)
+Health check: [https://kaja-service-0cns.onrender.com/health](https://kaja-service-0cns.onrender.com/health)
 
-API base URL: `https://kaja-service-7dp9.onrender.com/v1`
+API base URL: `https://kaja-service-0cns.onrender.com/v1`
 
 ## Authentication scope vocabulary (Session 4)
 
