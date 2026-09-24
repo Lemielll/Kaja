@@ -1,0 +1,49 @@
+services:
+  - type: web
+    name: kaja-auth
+    runtime: image
+    image:
+      url: quay.io/keycloak/keycloak:26.0
+    disk:
+      name: keycloak-data
+      mountPath: /opt/keycloak/data
+      sizeGB: 1
+    envVars:
+      - key: KC_BOOTSTRAP_ADMIN_USERNAME
+        value: admin
+      - key: KC_BOOTSTRAP_ADMIN_PASSWORD
+        generateValue: true
+      - key: KC_HTTP_PORT
+        value: "8080"
+    healthCheckPath: /health/ready
+    startCommand: start --import-realm
+    dockerfilePath: infra/Dockerfile.keycloak
+    autoDeploy: false
+
+  - type: web
+    name: kaja-api
+    runtime: node
+    rootDir: service
+    buildCommand: npm install
+    startCommand: node src/app.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "4010"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: kaja-db
+          property: connectionString
+      - key: OIDC_ISSUER
+        sync: false
+      - key: OIDC_JWKS_URI
+        sync: false
+      - key: OIDC_AUDIENCE
+        value: kaja-api
+    autoDeploy: false
+
+databases:
+  - name: kaja-db
+    plan: free
+    databaseName: kaja

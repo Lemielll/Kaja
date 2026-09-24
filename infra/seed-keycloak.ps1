@@ -290,11 +290,7 @@ foreach ($user in $users) {
         $roleObj = Invoke-RestMethod -Uri "$KeycloakUrl/admin/realms/kaja/roles/$($user.role)" `
             -Method Get -Headers $headers
         
-        $roleAssignment = @(@{
-            id = $roleObj.id
-            name = $roleObj.name
-        })
-        $roleBody = $roleAssignment | ConvertTo-Json -Depth 5 -Compress
+        $roleBody = "[{`"id`":`"$($roleObj.id)`",`"name`":`"$($roleObj.name)`"}]"
         
         Invoke-RestMethod -Uri "$KeycloakUrl/admin/realms/kaja/users/$userId/role-mappings/realm" `
             -Method Post -Headers $headers -Body $roleBody -ContentType "application/json"

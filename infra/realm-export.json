@@ -119,6 +119,7 @@
     ],
     "client": {
       "web-app": [],
+      "test-cli": [],
       "realm-management": [
         {
           "id": "0da394c3-c662-4354-8373-47b39668f0f2",
@@ -436,6 +437,110 @@
     }
   },
   "groups": [],
+  "users": [
+    {
+      "id": "a1b2c3d4-0001-4000-8000-000000000001",
+      "username": "contractor-a",
+      "email": "contractor-a@test.local",
+      "firstName": "Contractor",
+      "lastName": "Alpha",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "test123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["contractor"]
+    },
+    {
+      "id": "a1b2c3d4-0002-4000-8000-000000000002",
+      "username": "contractor-b",
+      "email": "contractor-b@test.local",
+      "firstName": "Contractor",
+      "lastName": "Beta",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "test123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["contractor"]
+    },
+    {
+      "id": "a1b2c3d4-0003-4000-8000-000000000003",
+      "username": "warehouse-admin-a",
+      "email": "warehouse-admin-a@test.local",
+      "firstName": "Warehouse",
+      "lastName": "Admin A",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "test123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["warehouse-admin"]
+    },
+    {
+      "id": "a1b2c3d4-0004-4000-8000-000000000004",
+      "username": "warehouse-admin-b",
+      "email": "warehouse-admin-b@test.local",
+      "firstName": "Warehouse",
+      "lastName": "Admin B",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "test123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["warehouse-admin"]
+    },
+    {
+      "id": "a1b2c3d4-0005-4000-8000-000000000005",
+      "username": "field-operator-a",
+      "email": "field-operator-a@test.local",
+      "firstName": "Field",
+      "lastName": "Operator A",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "test123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["field-operator"]
+    },
+    {
+      "id": "a1b2c3d4-0006-4000-8000-000000000006",
+      "username": "field-operator-b",
+      "email": "field-operator-b@test.local",
+      "firstName": "Field",
+      "lastName": "Operator B",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "test123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["field-operator"]
+    }
+  ],
   "defaultRole": {
     "id": "e1346377-6de5-47d9-8907-40a3174fd53d",
     "name": "default-roles-kaja",
@@ -870,6 +975,57 @@
         "oauth2.device.authorization.grant.enabled": "false",
         "display.on.consent.screen": "false",
         "pkce.code.challenge.method": "S256",
+        "backchannel.logout.revoke.offline.tokens": "false"
+      },
+      "authenticationFlowBindingOverrides": {},
+      "fullScopeAllowed": true,
+      "nodeReRegistrationTimeout": -1,
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "basic",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "rentals:write",
+        "equipment:read",
+        "phone",
+        "offline_access",
+        "organization",
+        "inspections:write",
+        "microprofile-jwt",
+        "rentals:read"
+      ]
+    },
+    {
+      "id": "b3e2f1a0-4c5d-6e7f-8a9b-0c1d2e3f4a5b",
+      "clientId": "test-cli",
+      "name": "Test CLI (Automated Testing Only)",
+      "description": "Used for automated contract tests. NOT for production.",
+      "enabled": true,
+      "alwaysDisplayInConsole": false,
+      "clientAuthenticatorType": "client-secret",
+      "redirectUris": [],
+      "webOrigins": [],
+      "notBefore": 0,
+      "bearerOnly": false,
+      "consentRequired": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "publicClient": true,
+      "frontchannelLogout": false,
+      "protocol": "openid-connect",
+      "attributes": {
+        "realm_client": "false",
+        "oidc.ciba.grant.enabled": "false",
+        "backchannel.logout.session.required": "true",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "display.on.consent.screen": "false",
         "backchannel.logout.revoke.offline.tokens": "false"
       },
       "authenticationFlowBindingOverrides": {},
