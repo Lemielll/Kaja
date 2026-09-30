@@ -24,6 +24,7 @@ const idempotencyStore = require('../store/idempotency');
 const inspectionStore = require('../store/inspections');
 const { requireScope } = require('../auth/require-scope');
 const ownership = require('../auth/ownership');
+const conditional = require('../middleware/conditional');
 
 const router = express.Router();
 
@@ -49,7 +50,17 @@ router.get(
       }
 
       const rows = await rentalStore.getAllRentals(filters);
-      return res.status(200).json(rows.map(representations.rowToRental));
+      const body = rows.map(representations.rowToRental);
+
+      // Session 5 Step 8: ETag and conditional read (304)
+      const etag = conditional.etagOf(body);
+      res.set('ETag', etag);
+      res.set('Cache-Control', 'private, no-cache');
+
+      // If-None-Match matches → 304 (no body, but ETag + CORS headers still present)
+      if (conditional.check304(req, res, etag)) return;
+
+      return res.status(200).json(body);
     } catch (err) {
       console.error('[ROUTE RENTALS] GET /rentals error:', err.message);
       return problem.internalError(res, req.originalUrl);
@@ -166,7 +177,17 @@ router.get(
         );
       }
 
-      return res.status(200).json(representations.rowToRental(row));
+      const body = representations.rowToRental(row);
+
+      // Session 5 Step 8: ETag from version for single entity
+      const etag = conditional.etagFromVersion(row);
+      res.set('ETag', etag);
+      res.set('Cache-Control', 'private, no-cache');
+
+      // If-None-Match matches → 304
+      if (conditional.check304(req, res, etag)) return;
+
+      return res.status(200).json(body);
     } catch (err) {
       console.error(`[ROUTE RENTALS] GET /rentals/${req.params.id} error:`, err.message);
       return problem.internalError(res, req.originalUrl);
@@ -234,6 +255,31 @@ router.post(
           res,
           `Rental ${rentalId} does not exist.`,
           req.originalUrl,
+        );
+      }
+
+      // --- Session 5 Step 9: If-Match check for conditional write ---
+      // Check rental version to prevent race conditions (rental cancelled while inspection submitted)
+      const ifMatch = req.get('If-Match');
+      const currentETag = conditional.etagFromVersion(rental);
+
+      // Optional: require If-Match (needs Contract Owner coordination for 428 in openapi.yaml)
+      // Uncomment if 428 is added to contract:
+      // if (!ifMatch) {
+      //   return problem.preconditionRequired(
+      //     res,
+      //     'If-Match header is required for this operation.',
+      //     req.originalUrl,
+      //   );
+      // }
+
+      // If If-Match provided, check it matches current version
+      if (ifMatch && !conditional.matchHits(ifMatch, currentETag)) {
+        return problem.preconditionFailed(
+          res,
+          'The rental state has changed since you last retrieved it. Please refresh and try again.',
+          req.originalUrl,
+          currentETag,
         );
       }
 
