@@ -305,7 +305,9 @@ components:
   securitySchemes:
     oauth2:
       type: oauth2
-      description: OAuth 2.0 / OpenID Connect authorization for API clients.
+      description: |
+        OAuth 2.0 / OpenID Connect authorization for API clients.
+        Interactive sign-out uses the identity provider's RP-Initiated Logout endpoint advertised by its OpenID Connect discovery document; it is not an API operation. Clients MUST clear local access-token and refresh-token state after sign-out. The API validates self-contained JWT access tokens, so a token already issued may remain valid until its expiration even after the identity provider session ends.
       flows:
         authorizationCode:
           authorizationUrl: https://auth.heavyrental.co/realms/heavyrental/protocol/openid-connect/auth
