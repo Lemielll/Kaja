@@ -1,5 +1,21 @@
 # Contract changelog
 
+## 2026-09-30 — Contract Owner: Conditional inspection writes
+
+Versi API: **1.2.0 → 1.3.0**. This backward-compatible addition documents the
+service's existing optimistic-concurrency behavior for inspection creation.
+
+### Ditambahkan
+
+- Optional `If-Match` on `POST /rentals/{id}/inspections`.
+- `412 Precondition Failed` with an `application/problem+json` body and the
+  current `ETag` when the supplied strong entity tag does not match.
+
+### Keputusan
+
+- `If-Match` remains optional; omitting it does not produce `428`.
+- Clients should refresh the rental representation after `412` before retrying.
+
 ## 2026-09-30 — Contract Owner: Conditional GET validators
 
 Versi API: **1.1.0 → 1.2.0**. This backward-compatible addition lets clients
