@@ -156,4 +156,4 @@ The deployed API base URL is configured through `VITE_API_BASE_URL`. All client
 network calls belong in `clients/web/src/lib/api.ts`. Current web integration
 works from `http://localhost:3000`; the deployed static-site origin still needs
 to be added to the API's CORS allowlist. See
-[`docs/temuan-ambiguitas-frontend.md`](docs/temuan-ambiguitas-frontend.md).
+[`docs/temuan-ambiguitas-frontend.md`](docs/temuan-ambiguitas-frontend.md) for moree information.
