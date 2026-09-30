@@ -7,7 +7,7 @@ refresh token, password, client secret, atau nilai `code_verifier` asli ke repos
 
 | Client | Classification | Flow | Holds a secret? | Redirect URI / deployment | Confirmation |
 |---|---|---|---|---|---|
-| Web | Public | Authorization Code + PKCE (S256) | No | `http://localhost:3000/callback`; `http://localhost:3000/silent-renew` | Configured in seed script |
+| Web | Public | Authorization Code + PKCE (S256) | No | `http://localhost:3000/callback`; `http://localhost:3000/silent-renew`; `http://localhost:3000/sign-in` | Configured in seed script |
 | Mobile | Public | Authorization Code + PKCE (S256) | No | `com.kaja.mobile:/oauth/callback` | Decided |
 | Device | Public | Authorization Code + PKCE (S256) | No | Direct-user deployment | Decided |
 | MCP | Confidential | Client Credentials | Yes | Server-side deployment | Decided |
@@ -21,10 +21,17 @@ refresh token, password, client secret, atau nilai `code_verifier` asli ke repos
 - [x] Redirect URI dicocokkan penuh tanpa wildcard.
 - [x] Token tidak dimasukkan ke URL, `localStorage`, log, atau pesan error.
 - [x] Access token browser disimpan hanya di memory.
-- [x] Refresh token browser menggunakan cookie `HttpOnly`, `Secure`, `SameSite`.
+- [ ] Refresh token browser menggunakan cookie `HttpOnly`, `Secure`, `SameSite` (belum diimplementasikan; memerlukan BFF/server-side session).
 - [x] Android menggunakan Keystore atau `EncryptedSharedPreferences`.
 - [x] iOS menggunakan Keychain.
 - [x] Secret server-side disimpan di secret manager.
+
+Web client di `clients/web` saat ini hanya menyimpan objek user dan token
+sementara di memory. OIDC transaction state/PKCE disimpan sementara oleh
+`oidc-client-ts` di `sessionStorage`; access/refresh token tidak memakai
+`localStorage`. Silent refresh dan refresh token cookie belum tersedia. Sampai
+BFF atau keputusan arsitektur disepakati, sesi kedaluwarsa ditangani dengan
+menghapus sesi memory dan meminta autentikasi ulang.
 
 ## 3. Client Error Handling
 

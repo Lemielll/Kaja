@@ -20,7 +20,11 @@ Dengan demikian, temuan dalam dokumen ini terutama berkaitan dengan kelengkapan 
 
 | Prioritas | Temuan | Dampak utama |
 | --- | --- | --- |
-| P0 | Tidak ada autentikasi, role, dan tenant context | Data dan identitas pengguna tidak dapat diamankan atau ditentukan secara kontraktual |
+| P0 | Identitas aktor create rental tetap dikirim dari body | Client tidak tahu apakah nilai tersebut dipercaya atau harus mengikuti principal |
+| P0 | CORS belum mengizinkan origin web production | Browser lokal sudah diizinkan; origin static web belum |
+| P1 | If-Match/412 belum didokumentasikan di OpenAPI | Inspection write butuh reviewed conditional-write contract |
+| Selesai | Logout OIDC belum dijelaskan dalam kontrak | OpenAPI kini menetapkan RP-Initiated Logout melalui identity provider |
+| Selesai | Skema Problem belum mendefinisikan `invalid-params` | Kontrak kini menjelaskan field dan reason untuk error field-level |
 | P0 | Status pembayaran deposit tidak dimodelkan | Frontend tidak dapat menampilkan atau mengendalikan alur pembayaran |
 | Selesai | `Idempotency-Key` inspeksi tidak ada di OpenAPI | Header wajib, retensi, dan perilaku retry kini disepakati dalam kontrak |
 | P1 | Tidak ada URL foto atau metadata visual alat | Mobile tidak dapat menampilkan katalog alat secara layak |
@@ -35,23 +39,77 @@ Dengan demikian, temuan dalam dokumen ini terutama berkaitan dengan kelengkapan 
 
 ## Temuan Detail
 
+## Temuan Verifikasi Client Owner P5 (2026-09-30)
+
+Temuan berikut diverifikasi terhadap kontrak dan deployment API aktif saat
+skeleton web mulai dibuat:
+
+### C1. CORS production belum mengizinkan origin web deploy
+
+`GET https://kaja-service-0cns.onrender.com/health` mengembalikan `200`, tetapi
+menyertakan `Access-Control-Allow-Origin: http://localhost:3000`. Preflight
+`OPTIONS` dari origin lokal juga mengembalikan `204` dengan allow-methods,
+allow-headers, expose-headers, dan `Vary: Origin`. Origin contoh deploy
+`https://kaja-web.onrender.com` belum diizinkan: preflight-nya mengembalikan
+`204` tanpa `Access-Control-Allow-Origin`.
+
+**Dampak:** web lokal dapat membaca API, tetapi browser akan memblokir API dari
+web deploy sampai domain aktual static site dimasukkan dalam allowlist Render
+`CORS_ALLOWED_ORIGINS` dan API di-deploy ulang.
+
+### C2. Logout melalui identity provider — selesai
+
+`openapi.yaml` kini menetapkan RP-Initiated Logout melalui endpoint yang
+diiklankan oleh discovery OIDC. Web client menggunakan redirect tersebut dan
+menghapus sesi lokal. Karena API memakai JWT self-contained, access token yang
+sudah diterbitkan dapat tetap valid sampai kedaluwarsa; client tidak boleh
+mengklaim logout membatalkan token yang sudah terbit.
+
+### C3. Conditional write belum dikontrak
+
+OpenAPI kini mendokumentasikan ETag, `If-None-Match`, dan 304 pada collection
+serta detail rental. Service juga mengimplementasikan `If-Match`/412 pada
+inspeksi, tetapi operasi inspeksi di OpenAPI belum mendeskripsikan header itu
+atau respons 412.
+
+**Dampak:** client dapat melakukan polling hemat bandwidth. Conditional write
+belum memiliki kontrak reviewed sehingga perilaku 412 masih bergantung pada
+implementasi service saat ini.
+
+**Keputusan yang diminta dari Contract Owner:** dokumentasikan header dan status
+`If-Match`/412 pada inspeksi write, lalu review API layer web yang mengirimnya.
+
+### C4. `invalid-params` — selesai
+
+Schema `Problem` kini menetapkan item `invalid-params` dengan `field` dan
+`reason`. Client API layer memetakan struktur ini menjadi error field-level.
+
+### C5. Opaque actor ID tidak dapat diturunkan dari principal OIDC
+
+`POST /rentals` mewajibkan `contractorId` dan `warehouseAdminId`, sedangkan
+`POST /rentals/{id}/inspections` mewajibkan `operatorId`. Contoh/seed data
+memakai ID seperti `ctr_72Xp9C` dan `opr_84Qm1a`. Service principal saat ini
+menggunakan JWT `sub` apa adanya; tidak ada mapping dari `sub` ke ID domain yang
+didokumentasikan pada kontrak atau konfigurasi web client.
+
+**Dampak:** browser tidak boleh menebak, meminta pengguna mengetik, atau
+menganggap UUID `sub` sebagai ID domain. Payload write belum dapat dibentuk
+secara konsisten dengan identitas terautentikasi.
+
+**Keputusan yang diminta:** Contract Owner dan Service Owner menyepakati sumber
+ID domain, misalnya claim terverifikasi yang dipetakan server-side, atau
+menghapus field identitas aktor dari body dan menurunkannya di backend. Client
+tidak akan mengirim write dengan identitas buatan.
+
 ## Temuan Autentikasi Sesi 4
 
-### A1. Security scheme dan status autentikasi belum ada di kontrak
+### A1. Security scheme dan respons autentikasi — selesai
 
-`openapi.yaml` masih menggunakan `security: []` dan belum mendefinisikan
-`components.securitySchemes.oauth2`. Operation yang nantinya membutuhkan login
-juga belum mendokumentasikan response `401` dan `403`.
-
-**Dampak ke client:** Web, Mobile, Device, dan MCP belum memiliki kontrak resmi
-untuk memperoleh atau mengirim token, menangani token invalid, atau membedakan
-unauthenticated dari insufficient scope.
-
-**Keputusan yang diminta dari Contract Owner:** tambahkan OAuth2/OIDC security
-scheme, security requirement per operation, dan response `401`, `403`, serta
-`404` untuk operation terproteksi. `404` untuk object access harus mencakup
-resource yang tidak ada dan resource milik principal lain dengan response yang
-identik.
+`openapi.yaml` kini mendefinisikan OAuth2 authorization-code/client-credentials,
+scope per operation, serta respons `401`, `403`, dan `404` untuk operasi yang
+terproteksi. Respons `404` menyatakan resource yang tidak ada dan tidak terlihat
+oleh caller harus identik. Temuan lama tentang security scheme dan respons ini
+ditutup; operasi sign-out masih belum tersedia (lihat temuan sesi 5 di bawah).
 
 ### A2. Identitas aktor masih berasal dari request body
 
@@ -66,18 +124,11 @@ frontend tidak tahu field mana yang harus diisi dari sesi login.
 Tetapkan field body mana yang dihapus, diabaikan, atau hanya dipakai sebagai
 referensi yang divalidasi terhadap `req.principal`.
 
-### A3. Client Device dan MCP belum memiliki klasifikasi final
+### A3. Klasifikasi client — selesai
 
-Web dan Mobile diklasifikasikan sebagai public client dengan Authorization Code
-+ PKCE. Namun, kontrak dan deployment belum menjelaskan apakah Device dapat
-diinspeksi oleh pengguna dan apakah MCP berjalan sebagai server-side service.
-
-**Keputusan yang diminta:**
-
-- Device public jika secret dapat dibaca pengguna; gunakan PKCE.
-- Device confidential hanya jika seluruh credential berada di backend tepercaya.
-- MCP confidential jika berjalan server-side; gunakan Client Credentials dan
-  secret manager.
+ADR 0003 menetapkan Web, Mobile, dan Device sebagai public client dengan
+Authorization Code + PKCE; MCP adalah confidential client server-side dengan
+Client Credentials. Temuan lama ini ditutup.
 
 ### A4. Alur pengujian token belum konsisten
 

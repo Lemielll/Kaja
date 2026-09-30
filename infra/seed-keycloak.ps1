@@ -141,7 +141,8 @@ try {
         directAccessGrantsEnabled = $false
         redirectUris = @(
             "http://localhost:3000/callback",
-            "http://localhost:3000/silent-renew"
+            "http://localhost:3000/silent-renew",
+            "http://localhost:3000/sign-in"
         )
         webOrigins = @("http://localhost:3000")
         attributes = @{

@@ -135,3 +135,25 @@ missing from the contract.
   rental identifier. There is no operation to list assigned rentals or read
   inspection history, so the client must receive that assignment context from
   the surrounding application flow; it must not invent a new endpoint.
+
+## Client Web (Client Owner)
+
+Run the web application from `clients/web` with `npm install`, copy
+`.env.example` to `.env`, then run `npm run dev`. Vite uses
+`http://localhost:3000`, which matches the registered Keycloak callback. The
+web client uses Authorization Code + PKCE as a public client. Access tokens and
+the active OIDC user stay in memory; `localStorage` is not used. OIDC transaction
+state is temporary in `sessionStorage` so the PKCE callback can be verified
+after redirect. No persistent refresh token or silent renewal is implemented;
+a `401` clears the in-memory session and asks the user to sign in again. This
+does not meet the proposed `HttpOnly` refresh-cookie design, which requires a
+server-side BFF or an explicit architecture decision. Sign-out uses the
+RP-Initiated Logout endpoint advertised by OIDC discovery and clears local
+session state. Because the API validates self-contained JWTs, an access token
+already issued may remain valid until it expires.
+
+The deployed API base URL is configured through `VITE_API_BASE_URL`. All client
+network calls belong in `clients/web/src/lib/api.ts`. Current web integration
+works from `http://localhost:3000`; the deployed static-site origin still needs
+to be added to the API's CORS allowlist. See
+[`docs/temuan-ambiguitas-frontend.md`](docs/temuan-ambiguitas-frontend.md).
