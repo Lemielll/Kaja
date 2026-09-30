@@ -1,23 +1,63 @@
 services:
-  - type: web
-    name: kaja-auth
+  # One-shot realm seeding. Keycloak 26 removed `--import-realm` from `start`, so the
+  # realm is loaded by a separate job that must succeed before `kaja-auth` starts.
+  # Both share the same dev-file (H2) disk, so the imported realm is visible to it.
+  # realm-export.json lives in /opt/keycloak/import (image layer), so mounting a disk
+  # at /opt/keycloak/data does not shadow the import file.
+  - type: job
+    name: kaja-auth-seed
     runtime: image
     image:
       url: quay.io/keycloak/keycloak:26.0
+    dockerfilePath: infra/Dockerfile.keycloak
+    dockerContext: infra
     disk:
-      name: keycloak-data
+      name: keycloak-seed-data
       mountPath: /opt/keycloak/data
       sizeGB: 1
     envVars:
       - key: KC_BOOTSTRAP_ADMIN_USERNAME
         value: admin
       - key: KC_BOOTSTRAP_ADMIN_PASSWORD
-        generateValue: true
+        sync: false
+      - key: KC_HOSTNAME_STRICT
+        value: "false"
+      - key: KC_DB
+        value: dev-file
+    # `import` is a standalone command in Keycloak 26 and needs an explicit file.
+    startCommand: import --optimized --file /opt/keycloak/import/realm-export.json
+    autoDeployTrigger: commit
+
+  - type: web
+    name: kaja-auth
+    runtime: image
+    image:
+      url: quay.io/keycloak/keycloak:26.0
+    dockerfilePath: infra/Dockerfile.keycloak
+    dockerContext: infra
+    disk:
+      name: keycloak-seed-data
+      mountPath: /opt/keycloak/data
+      sizeGB: 1
+    envVars:
+      - key: KC_BOOTSTRAP_ADMIN_USERNAME
+        value: admin
+      - key: KC_BOOTSTRAP_ADMIN_PASSWORD
+        sync: false
       - key: KC_HTTP_PORT
         value: "8080"
-    healthCheckPath: /health/ready
-    startCommand: start --import-realm
-    dockerfilePath: infra/Dockerfile.keycloak
+      - key: KC_HOSTNAME_STRICT
+        value: "false"
+      - key: KC_HEALTH_ENABLED
+        value: "true"
+      - key: KC_DB
+        value: dev-file
+    # The Keycloak image ships no curl, and /health/ready lives on the management
+    # port (9000) which Render does not expose. Probing the realm also makes the
+    # health check fail if the seed job never ran, instead of reporting healthy
+    # with an empty realm.
+    healthCheckPath: /realms/kaja
+    startCommand: start --optimized
     autoDeploy: false
 
   - type: web

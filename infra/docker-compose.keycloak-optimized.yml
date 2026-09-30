@@ -1,0 +1,55 @@
+services:
+  # One-shot realm seeding. Keycloak 26 removed `--import-realm` from `start`, so the
+  # realm is loaded by a separate `import` run that must finish before the server
+  # starts. Both containers share the same dev-file (H2) volume.
+  seed:
+    build:
+      context: .
+      dockerfile: Dockerfile.keycloak
+    command: import --optimized --file /opt/keycloak/import/realm-export.json
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
+      KC_HOSTNAME_STRICT: "false"
+      KC_DB: dev-file
+    volumes:
+      - keycloak-seed-data:/opt/keycloak/data
+
+  auth:
+    build:
+      context: .
+      dockerfile: Dockerfile.keycloak
+    container_name: kaja-keycloak-optimized
+    command: start --optimized
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
+      KC_HTTP_PORT: "8080"
+      KC_HOSTNAME_STRICT: "false"
+      KC_HEALTH_ENABLED: "true"
+      KC_DB: dev-file
+    ports:
+      - "8081:8080"
+    volumes:
+      # Shared with `seed` so the imported realm is visible here.
+      - keycloak-seed-data:/opt/keycloak/data
+    healthcheck:
+      # The Keycloak image ships no shell utilities, so probe with a raw HTTP request
+      # over bash's /dev/tcp instead of curl. Probing the realm also fails if the
+      # seed never ran, which /health/ready (management port) would not catch.
+      test:
+        - CMD-SHELL
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/8080 &&
+          printf 'GET /realms/kaja HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 &&
+          grep -q '200 OK' <&3
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+volumes:
+  keycloak-seed-data:

@@ -1,6 +1,32 @@
 FROM quay.io/keycloak/keycloak:26.0
 
-COPY realm-export.json /opt/keycloak/data/import/realm-export.json
+# Realm export goes to a dedicated import path, NOT /opt/keycloak/data.
+# Reason: production deploys mount a persistent disk at /opt/keycloak/data,
+# which would shadow /opt/keycloak/data/import and silently skip realm import.
+COPY realm-export.json /opt/keycloak/import/realm-export.json
 
+# Augment the image at build time instead of on every container start. Doing this
+# in `start` costs an extra CPU + memory spike on each cold start, which matters on
+# small (512 MB) instances. `--optimized` alone is a `start` flag and is not
+# accepted here; `--http-enabled` / `--http-port` are runtime options and are also
+# rejected by `build`.
+RUN /opt/keycloak/bin/kc.sh build \
+      --db=dev-file \
+      --health-enabled=true \
+      --metrics-enabled=false
+
+ENV KC_HTTP_ENABLED=true \
+    KC_HTTP_PORT=8080 \
+    KC_HOSTNAME_STRICT=false \
+    KC_HEALTH_ENABLED=true \
+    KC_METRICS_ENABLED=false \
+    KC_DB=dev-file \
+    KC_PROXY_HEADERS=xforwarded \
+    KC_LOG_LEVEL=info \
+    JAVA_OPTS_APPEND="-XX:MaxRAMPercentage=70.0 -XX:TieredStopAtLevel=1 -XX:MaxMetaspaceSize=192m"
+
+# Keycloak 26 removed `--import-realm` from `start`. The realm is loaded by a
+# separate one-shot `import` run; see render.yaml (kaja-auth-seed) and
+# docker-compose.keycloak-optimized.yml (seed service).
 ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
-CMD ["start", "--import-realm"]
+CMD ["start", "--optimized"]
