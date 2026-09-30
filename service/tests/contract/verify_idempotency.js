@@ -9,7 +9,7 @@
  */
 
 const crypto = require('crypto');
-const { tokenFor } = require('../helpers/tokens');
+const { setupKeyServer, closeKeyServer, tokenFor } = require('../helpers/tokens');
 
 const baseUrl = (process.env.BASE_URL || 'http://127.0.0.1:4010/v1').replace(/\/+$/, '');
 const idempotencyKey = crypto.randomUUID();
@@ -41,36 +41,44 @@ async function run() {
   console.log(`Idempotency target: ${baseUrl}`);
   console.log(`Idempotency-Key: ${idempotencyKey}`);
 
-  // Generate token otorisasi lokal dengan scope yang dibutuhkan
-  const token = await tokenFor('ctr_72Xp9C', [
-    'rentals:write',
-    'rentals:read',
-    'equipments:read',
-  ]);
+  const { server } = await setupKeyServer(9999, '127.0.0.1');
 
-  const first = await createRental(body, token);
-  if (first.response.status !== 201) {
-    throw new Error(`first POST /rentals returned ${first.response.status}, expected 201`);
-  }
-  if (first.response.headers.get('location') !== `/rentals/${first.body?.id}`) {
-    throw new Error('first POST /rentals response is missing the resource Location header');
-  }
+  try {
+    // Generate token otorisasi lokal dengan scope yang dibutuhkan
+    const token = await tokenFor('ctr_72Xp9C', [
+      'rentals:write',
+      'rentals:read',
+      'equipments:read',
+    ]);
 
-  const replay = await createRental(body, token);
-  if (replay.response.status !== 201 || replay.body?.id !== first.body?.id) {
-    throw new Error('identical replay did not return the original 201 rental response');
-  }
-  if (replay.response.headers.get('location') !== `/rentals/${first.body?.id}`) {
-    throw new Error('idempotent replay is missing the resource Location header');
-  }
+    const first = await createRental(body, token);
+    if (first.response.status !== 201) {
+      throw new Error(`first POST /rentals returned ${first.response.status}, expected 201`);
+    }
+    if (first.response.headers.get('location') !== `/rentals/${first.body?.id}`) {
+      throw new Error('first POST /rentals response is missing the resource Location header');
+    }
 
-  const differentBody = { ...body, depositAmount: 150001 };
-  const conflict = await createRental(differentBody, token);
-  if (conflict.response.status !== 409 || conflict.body?.type !== 'https://api.heavyrental.co/problems/idempotency-key-reuse') {
-    throw new Error('same key with a different body did not return the required 409 idempotency-key-reuse problem');
-  }
+    const replay = await createRental(body, token);
+    if (replay.response.status !== 201 || replay.body?.id !== first.body?.id) {
+      throw new Error('identical replay did not return the original 201 rental response');
+    }
+    if (replay.response.headers.get('location') !== `/rentals/${first.body?.id}`) {
+      throw new Error('idempotent replay is missing the resource Location header');
+    }
 
-  console.log(`PASS: one rental (${first.body.id}) was created and the duplicate was replayed`);
+    const differentBody = { ...body, depositAmount: 150001 };
+    const conflict = await createRental(differentBody, token);
+    if (conflict.response.status !== 409 || conflict.body?.type !== 'https://api.heavyrental.co/problems/idempotency-key-reuse') {
+      throw new Error('same key with a different body did not return the required 409 idempotency-key-reuse problem');
+    }
+
+    console.log(`PASS: one rental (${first.body.id}) was created and the duplicate was replayed`);
+  } finally {
+    if (server) {
+      await closeKeyServer();
+    }
+  }
 }
 
 run().catch((error) => {

@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS equipments (
     hourly_rate INTEGER NOT NULL CHECK (hourly_rate >= 0),
     currency VARCHAR(3) NOT NULL DEFAULT 'USD',
     location VARCHAR(255) NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_equipment_status CHECK (
@@ -24,6 +25,7 @@ CREATE TABLE IF NOT EXISTS equipments (
 
 CREATE INDEX IF NOT EXISTS idx_equipments_status ON equipments(status);
 CREATE INDEX IF NOT EXISTS idx_equipments_type ON equipments(type);
+CREATE INDEX IF NOT EXISTS idx_equipments_version ON equipments(version);
 
 -- 2. Table: rentals
 CREATE TABLE IF NOT EXISTS rentals (
@@ -37,6 +39,7 @@ CREATE TABLE IF NOT EXISTS rentals (
     end_time TIMESTAMPTZ NOT NULL,
     deposit_amount INTEGER NOT NULL CHECK (deposit_amount >= 0),
     currency VARCHAR(3) NOT NULL DEFAULT 'USD',
+    version INTEGER NOT NULL DEFAULT 1,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_rental_status CHECK (
@@ -47,6 +50,7 @@ CREATE TABLE IF NOT EXISTS rentals (
 
 CREATE INDEX IF NOT EXISTS idx_rentals_equipment_id ON rentals(equipment_id);
 CREATE INDEX IF NOT EXISTS idx_rentals_status ON rentals(status);
+CREATE INDEX IF NOT EXISTS idx_rentals_version ON rentals(version);
 
 -- 3. Table: idempotency_keys (Session 3: A.8 Server-side idempotency)
 -- Must be stored in a database table to survive process restarts
@@ -70,6 +74,7 @@ CREATE TABLE IF NOT EXISTS inspections (
     inspected_at TIMESTAMPTZ NOT NULL,
     notes TEXT NOT NULL,
     defect_summary TEXT,
+    version INTEGER NOT NULL DEFAULT 1,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_inspection_status CHECK (
@@ -81,4 +86,5 @@ CREATE INDEX IF NOT EXISTS idx_inspections_rental_id ON inspections(rental_id);
 CREATE INDEX IF NOT EXISTS idx_inspections_equipment_id ON inspections(equipment_id);
 CREATE INDEX IF NOT EXISTS idx_inspections_operator_id ON inspections(operator_id);
 CREATE INDEX IF NOT EXISTS idx_inspections_inspected_at ON inspections(inspected_at);
+CREATE INDEX IF NOT EXISTS idx_inspections_version ON inspections(version);
 
