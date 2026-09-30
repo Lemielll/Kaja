@@ -61,7 +61,6 @@ export type Equipment = {
 
 export type CreateRentalInput = {
   equipmentId: string
-  contractorId: string
   warehouseAdminId: string
   startTime: string
   endTime: string
@@ -71,7 +70,6 @@ export type CreateRentalInput = {
 
 export type CreateInspectionInput = {
   equipmentId: string
-  operatorId: string
   status: 'pending_review' | 'in_progress' | 'pass' | 'fail'
   inspectedAt: string
   notes: string

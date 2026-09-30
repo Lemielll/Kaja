@@ -50,8 +50,9 @@ async function getAllRentals(filters = {}) {
     }
 
     let sql = `
-      SELECT id, equipment_id, contractor_id, warehouse_admin_id, status,
-             start_time, end_time, deposit_amount, currency, created_at, updated_at
+            SELECT id, equipment_id, contractor_id, warehouse_admin_id,
+              assigned_operator_id, status, start_time, end_time, deposit_amount,
+              currency, version, created_at, updated_at
       FROM rentals
     `;
 
@@ -81,8 +82,9 @@ async function getRentalById(id) {
 
   try {
     const sql = `
-      SELECT id, equipment_id, contractor_id, warehouse_admin_id, status,
-             start_time, end_time, deposit_amount, currency, created_at, updated_at
+            SELECT id, equipment_id, contractor_id, warehouse_admin_id,
+              assigned_operator_id, status, start_time, end_time, deposit_amount,
+              currency, version, created_at, updated_at
       FROM rentals
       WHERE id = $1
       LIMIT 1
@@ -119,8 +121,9 @@ async function insertRental(data) {
         id, equipment_id, contractor_id, warehouse_admin_id, status,
         start_time, end_time, deposit_amount, currency, created_at, updated_at
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      RETURNING id, equipment_id, contractor_id, warehouse_admin_id, status,
-                start_time, end_time, deposit_amount, currency, created_at, updated_at
+      RETURNING id, equipment_id, contractor_id, warehouse_admin_id,
+            assigned_operator_id, status, start_time, end_time, deposit_amount,
+            currency, version, created_at, updated_at
     `;
 
     const params = [

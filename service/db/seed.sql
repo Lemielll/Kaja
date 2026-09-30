@@ -50,13 +50,14 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- Seed rentals
-INSERT INTO rentals (id, equipment_id, contractor_id, warehouse_admin_id, status, start_time, end_time, deposit_amount, currency, created_at, updated_at)
+INSERT INTO rentals (id, equipment_id, contractor_id, warehouse_admin_id, assigned_operator_id, status, start_time, end_time, deposit_amount, currency, created_at, updated_at)
 VALUES
     (
         'rnt_3MnB7xP',
         'eqp_8X2kAB',
         'ctr_72Xp9C',
         'adm_19Lq2f',
+        'opr_84Qm1a',
         'approved',
         '2026-09-15T08:00:00Z',
         '2026-09-18T17:00:00Z',

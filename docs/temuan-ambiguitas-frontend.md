@@ -20,9 +20,9 @@ Dengan demikian, temuan dalam dokumen ini terutama berkaitan dengan kelengkapan 
 
 | Prioritas | Temuan | Dampak utama |
 | --- | --- | --- |
-| P0 | Identitas aktor create rental tetap dikirim dari body | Client tidak tahu apakah nilai tersebut dipercaya atau harus mengikuti principal |
+| P0 | Service runtime belum mengikuti actor_id contract; warehouseAdminId source belum jelas | Write client tidak dapat berhasil end to end |
 | P0 | CORS belum mengizinkan origin web production | Browser lokal sudah diizinkan; origin static web belum |
-| P1 | If-Match/412 belum didokumentasikan di OpenAPI | Inspection write butuh reviewed conditional-write contract |
+| Selesai | If-Match/412 belum didokumentasikan di OpenAPI | Kontrak kini mendeskripsikan conditional inspection write |
 | Selesai | Logout OIDC belum dijelaskan dalam kontrak | OpenAPI kini menetapkan RP-Initiated Logout melalui identity provider |
 | Selesai | Skema Problem belum mendefinisikan `invalid-params` | Kontrak kini menjelaskan field dan reason untuk error field-level |
 | P0 | Status pembayaran deposit tidak dimodelkan | Frontend tidak dapat menampilkan atau mengendalikan alur pembayaran |
@@ -65,48 +65,39 @@ menghapus sesi lokal. Karena API memakai JWT self-contained, access token yang
 sudah diterbitkan dapat tetap valid sampai kedaluwarsa; client tidak boleh
 mengklaim logout membatalkan token yang sudah terbit.
 
-### C3. Conditional write belum dikontrak
+### C3. Conditional write — selesai di kontrak
 
 OpenAPI kini mendokumentasikan ETag, `If-None-Match`, dan 304 pada collection
-serta detail rental. Service juga mengimplementasikan `If-Match`/412 pada
-inspeksi, tetapi operasi inspeksi di OpenAPI belum mendeskripsikan header itu
-atau respons 412.
+serta detail rental, juga `If-Match` opsional dan 412 pada inspeksi. Client
+mengirim ETag rental dan memperlakukan 412 sebagai kondisi konflik yang memicu
+refresh. Service route mendukung header tersebut.
 
-**Dampak:** client dapat melakukan polling hemat bandwidth. Conditional write
-belum memiliki kontrak reviewed sehingga perilaku 412 masih bergantung pada
-implementasi service saat ini.
-
-**Keputusan yang diminta dari Contract Owner:** dokumentasikan header dan status
-`If-Match`/412 pada inspeksi write, lalu review API layer web yang mengirimnya.
+Conditional write tidak lagi menjadi blocker kontrak.
 
 ### C4. `invalid-params` — selesai
 
 Schema `Problem` kini menetapkan item `invalid-params` dengan `field` dan
 `reason`. Client API layer memetakan struktur ini menjadi error field-level.
 
-### C5. Opaque actor ID tidak dapat diturunkan dari principal OIDC — selesai
+### C5. Actor ID dan assignment admin — kontrak diperbarui, service belum sinkron
 
-`POST /rentals` mewajibkan `contractorId` dan `warehouseAdminId`, sedangkan
-`POST /rentals/{id}/inspections` mewajibkan `operatorId`. Contoh/seed data
-memakai ID seperti `ctr_72Xp9C` dan `opr_84Qm1a`. Service principal saat ini
-menggunakan JWT `sub` apa adanya; tidak ada mapping dari `sub` ke ID domain yang
-didokumentasikan pada kontrak atau konfigurasi web client.
+`openapi.yaml` kini menetapkan claim terverifikasi `actor_id` sebagai ID domain
+pemanggil. Client tidak lagi mengirim `contractorId` atau `operatorId` pada body;
+service seharusnya menurunkannya dari claim tersebut. Namun route/schema service
+di branch saat ini masih membaca field lama dari request body dan belum memakai
+`actor_id`. Karena itu request client yang sesuai kontrak baru belum dapat
+berhasil terhadap service tersebut.
 
-**Dampak:** browser tidak boleh menebak, meminta pengguna mengetik, atau
-menganggap UUID `sub` sebagai ID domain. Payload write belum dapat dibentuk
-secara konsisten dengan identitas terautentikasi.
+Untuk pembuatan rental, `warehouseAdminId` tetap menjadi field body karena
+merupakan admin yang ditugaskan, bukan identitas pemanggil. Belum ada claim,
+operasi, atau sumber workflow yang menjelaskan bagaimana client memperoleh ID
+assignment ini. Client saat ini menahan submit bila nilai tersebut tidak ada;
+client tidak boleh mengarang atau menyamakan ID admin dengan ID pemanggil.
 
-**Keputusan Contract Owner dan Service Owner:** claim terverifikasi `actor_id`
-pada access token adalah ID domain aktor pemanggil; `sub` tetap merupakan ID
-subject dari identity provider dan tidak diasumsikan sebagai ID domain.
-`POST /rentals` menurunkan `contractorId` dari `actor_id`, sedangkan
-`POST /rentals/{id}/inspections` menurunkan `operatorId` dari `actor_id`.
-`warehouseAdminId` tetap dikirim sebagai ID admin yang ditugaskan pada rental,
-bukan sebagai identitas pemanggil. Kedua ID pemanggil dihapus dari request
-body OpenAPI; response tetap memuat ID tersebut. Claim `actor_id` harus dipetakan
-server-side ke ID domain opaque dan diverifikasi oleh SVC. Client tidak boleh
-mengirim atau menebak identitas pemanggil. Perubahan kontrak dicatat pada versi
-2.0.0; implementasi mapping oleh service masih menjadi tindak lanjut SVC.
+**Tindak lanjut:** Service Owner menyelaraskan autentikasi/schema/routes dengan
+claim `actor_id`. Contract Owner dan Service Owner menetapkan sumber
+`warehouseAdminId` assignment; jangan menambah endpoint khusus UI tanpa review
+kontrak.
 
 ## Temuan Autentikasi Sesi 4
 

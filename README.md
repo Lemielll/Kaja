@@ -156,4 +156,13 @@ The deployed API base URL is configured through `VITE_API_BASE_URL`. All client
 network calls belong in `clients/web/src/lib/api.ts`. Current web integration
 works from `http://localhost:3000`; the deployed static-site origin still needs
 to be added to the API's CORS allowlist. See
-[`docs/temuan-ambiguitas-frontend.md`](docs/temuan-ambiguitas-frontend.md) for moree information.
+[`docs/temuan-ambiguitas-frontend.md`](docs/temuan-ambiguitas-frontend.md).
+
+## Akun Uji Demonstrasi (Session 7 Demo)
+
+| Peran (Role) | Actor ID | Scopes / Perizinan | Hak Akses Workflow |
+| :--- | :--- | :--- | :--- |
+| **Contractor** | `ctr_72Xp9C` | `rentals:read`, `rentals:write`, `equipment:read` | Lihat katalog (`GET /equipments`), buat rental (`POST /rentals`), lacak rental (`GET /rentals`, `GET /rentals/{id}`) |
+| **Field Operator** | `opr_84Qm1a` | `inspections:write`, `rentals:read` | Melakukan inspeksi rental yang ditugaskan (`POST /rentals/{id}/inspections`) |
+| **Warehouse Admin** | `adm_19Lq2f` | `rentals:read`, `equipment:read` | Inspeksi & verifikasi rental cabang gudang |
+

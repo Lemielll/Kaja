@@ -23,6 +23,7 @@ function principalFrom(claims) {
 
   return {
     subject: claims.sub,
+    actorId: claims.actor_id,
     kind,
     scopes,
     tokenId: claims.jti,

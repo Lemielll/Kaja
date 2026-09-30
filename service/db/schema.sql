@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS rentals (
     equipment_id VARCHAR(32) NOT NULL REFERENCES equipments(id) ON DELETE RESTRICT,
     contractor_id VARCHAR(32) NOT NULL,
     warehouse_admin_id VARCHAR(32) NOT NULL,
+    assigned_operator_id VARCHAR(32),
     status VARCHAR(32) NOT NULL DEFAULT 'approved',
     start_time TIMESTAMPTZ NOT NULL,
     end_time TIMESTAMPTZ NOT NULL,

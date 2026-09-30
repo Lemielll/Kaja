@@ -58,7 +58,6 @@ const RENTAL_STATUS_ENUM = [
 // ---------------------------------------------------------------------------
 const CREATE_RENTAL_REQUIRED_FIELDS = [
   'equipmentId',
-  'contractorId',
   'warehouseAdminId',
   'startTime',
   'endTime',
@@ -194,16 +193,6 @@ function validateCreateRentalBody(req, res, next) {
       fieldError(
         'body.equipmentId',
         "Must match pattern '^[a-z]+_[A-Za-z0-9]{6,12}$' (e.g. eqp_8X2kAB).",
-      ),
-    );
-  }
-
-  // contractorId: string, pattern '^[a-z]+_[A-Za-z0-9]{6,12}$'
-  if (!isValidOpaqueId(body.contractorId)) {
-    errors.push(
-      fieldError(
-        'body.contractorId',
-        "Must match pattern '^[a-z]+_[A-Za-z0-9]{6,12}$' (e.g. ctr_72Xp9C).",
       ),
     );
   }

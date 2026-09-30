@@ -15,8 +15,8 @@
  * Predicate: Determines if the authenticated principal may read the specified rental.
  *
  * Rules:
- * - Contractor may read their own rental (contractor_id === principal.subject).
- * - Warehouse Admin may read rental assigned to them (warehouse_admin_id === principal.subject).
+ * - Contractor may read their own rental (contractor_id === principal.actorId).
+ * - Warehouse Admin may read rental assigned to them (warehouse_admin_id === principal.actorId).
  *
  * @param {object} principal - Authenticated principal (req.principal)
  * @param {object} rental - Database row of the rental object
@@ -28,12 +28,12 @@ function mayReadRental(principal, rental) {
   }
 
   // 1. Contractor check: principal owns the rental
-  if (rental.contractor_id === principal.subject) {
+  if (rental.contractor_id === principal.actorId) {
     return true;
   }
 
   // 2. Warehouse Admin check: principal is assigned to administer this rental
-  if (rental.warehouse_admin_id === principal.subject) {
+  if (rental.warehouse_admin_id === principal.actorId) {
     return true;
   }
 
@@ -45,29 +45,23 @@ function mayReadRental(principal, rental) {
  *
  * Rules:
  * - Field Operator must have 'inspections:write' scope.
- * - The operatorId declared in the request body must match the caller's principal.subject.
+ * - Field Operator may inspect only rentals assigned to their principal.actorId.
  *
  * @param {object} principal - Authenticated principal (req.principal)
  * @param {object} rental - Database row of the rental object
- * @param {object} body - Request body containing operatorId
  * @returns {boolean} True if operator is authorized to inspect
  */
-function mayCreateInspection(principal, rental, body) {
-  if (!principal || !rental || !body) {
+function mayCreateInspection(principal, rental) {
+  if (!principal || !rental || !principal.actorId) {
     return false;
   }
 
   // Warehouse Admin may create inspection for rentals they administer
-  if (rental.warehouse_admin_id === principal.subject) {
+  if (rental.warehouse_admin_id === principal.actorId) {
     return true;
   }
 
-  // Field Operator: caller must be the declared operator
-  if (body.operatorId !== principal.subject) {
-    return false;
-  }
-
-  return true;
+  return rental.assigned_operator_id === principal.actorId;
 }
 
 module.exports = {

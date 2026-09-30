@@ -44,7 +44,6 @@ const INSPECTION_STATUS_ENUM = [
 // ---------------------------------------------------------------------------
 const INSPECTION_REQUIRED_FIELDS = [
   'equipmentId',
-  'operatorId',
   'status',
   'inspectedAt',
   'notes',
@@ -56,7 +55,7 @@ const INSPECTION_REQUIRED_FIELDS = [
 
 /**
  * Validate request body for POST /rentals/{id}/inspections.
- * Required fields: equipmentId, operatorId, status, inspectedAt, notes.
+ * Required fields: equipmentId, status, inspectedAt, notes.
  * Optional fields: defectSummary.
  *
  * @param {import('express').Request}  req
@@ -101,16 +100,6 @@ function validateCreateInspectionBody(req, res, next) {
       fieldError(
         'body.equipmentId',
         "Must be a string matching pattern '^[a-z]+_[A-Za-z0-9]{6,12}$' (e.g. eqp_8X2kAB).",
-      ),
-    );
-  }
-
-  // operatorId: string, pattern '^[a-z]+_[A-Za-z0-9]{6,12}$'
-  if (!isValidOpaqueId(body.operatorId)) {
-    errors.push(
-      fieldError(
-        'body.operatorId',
-        "Must be a string matching pattern '^[a-z]+_[A-Za-z0-9]{6,12}$' (e.g. opr_84Qm1a).",
       ),
     );
   }

@@ -279,10 +279,9 @@ function EquipmentCataloguePage() {
 function RentalRequestPage() {
   const [searchParams] = useSearchParams()
   const equipmentId = searchParams.get('equipmentId') || ''
-  const { user } = useAuth()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const claims = user?.profile as Record<string, unknown> | undefined
-  const contractorId = typeof claims?.contractorId === 'string' ? claims.contractorId : null
   const warehouseAdminId = typeof claims?.warehouseAdminId === 'string' ? claims.warehouseAdminId : null
   const [form, setForm] = useState({ startTime: '', endTime: '', depositAmount: '', currency: 'USD' })
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
@@ -310,14 +309,13 @@ function RentalRequestPage() {
       setFieldErrors(errors)
       return
     }
-    if (!contractorId || !warehouseAdminId) {
-      setFormError('Identitas kontraktor atau admin gudang belum tersedia pada sesi akun. Minta Service Owner mengonfigurasi claim domain sebelum membuat rental.')
+    if (!warehouseAdminId) {
+      setFormError('ID admin gudang yang ditugaskan belum tersedia pada konteks rental. Pengiriman ditahan sampai assignment tersedia.')
       return
     }
 
     const payload: CreateRentalInput = {
       equipmentId,
-      contractorId,
       warehouseAdminId,
       startTime: new Date(form.startTime).toISOString(),
       endTime: new Date(form.endTime).toISOString(),
@@ -355,7 +353,7 @@ function RentalRequestPage() {
     <WorkflowPage title="Ajukan rental">
       {!equipmentId && <p className="inline-error" role="alert">Belum ada alat dipilih. <NavLink className="table-link" to="/equipments">Kembali ke katalog alat</NavLink></p>}
       {equipmentId && <p className="selected-equipment">Unit terpilih <strong>{equipmentId}</strong></p>}
-      {(!contractorId || !warehouseAdminId) && <p className="inline-error" role="status">Sesi akun belum menyediakan ID kontraktor dan admin gudang yang diwajibkan kontrak. Identitas tidak akan ditebak atau diminta sebagai input bebas.</p>}
+      {!warehouseAdminId && <p className="inline-error" role="status">ID admin gudang yang ditugaskan belum tersedia. Caller identity diturunkan service dari `actor_id`; client tidak mengirim ID pemanggil.</p>}
       <form className="inspection-form" onSubmit={(event) => void submitRequest(event)}>
         <label htmlFor="rental-start">Mulai sewa</label>
         <input id="rental-start" type="datetime-local" required value={form.startTime} onChange={(event) => setForm((current) => ({ ...current, startTime: event.target.value }))} />
@@ -375,7 +373,7 @@ function RentalRequestPage() {
 
         {fieldErrors.equipmentId && <span className="field-error" role="alert">{fieldErrors.equipmentId}</span>}
         {formError && <p className="form-error" role="alert">{formError}</p>}
-        <button className="primary-button" type="submit" disabled={submitting || !equipmentId || !contractorId || !warehouseAdminId}>
+        <button className="primary-button" type="submit" disabled={submitting || !equipmentId || !warehouseAdminId}>
           {submitting ? 'Mengirim...' : 'Kirim permintaan rental'}
         </button>
       </form>
@@ -456,7 +454,6 @@ function RentalDetailPage() {
 function InspectionPage() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
-  const { user } = useAuth()
   const [state, setState] = useState<ViewState<Rental>>({ status: 'loading' })
   const [rentalEtag, setRentalEtag] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
@@ -464,8 +461,6 @@ function InspectionPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState('')
   const [idempotencyKey] = useState(createIdempotencyKey)
-  const profile = user?.profile as Record<string, unknown> | undefined
-  const operatorId = typeof profile?.operatorId === 'string' ? profile.operatorId : null
   const [form, setForm] = useState({ status: 'pass' as CreateInspectionInput['status'], inspectedAt: localDateTime(), notes: '', defectSummary: '' })
 
   useEffect(() => {
@@ -502,14 +497,13 @@ function InspectionPage() {
 
   const submitInspection = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (state.status !== 'content' || !operatorId || !rentalEtag) return
+    if (state.status !== 'content' || !rentalEtag) return
 
     setSubmitting(true)
     setFieldErrors({})
     setFormError('')
     const payload: CreateInspectionInput = {
       equipmentId: state.data.equipmentId,
-      operatorId,
       status: form.status,
       inspectedAt: new Date(form.inspectedAt).toISOString(),
       notes: form.notes.trim(),
@@ -565,7 +559,6 @@ function InspectionPage() {
             <span>{state.data.id} / alat {state.data.equipmentId}</span>
             <span className="sync-time">Dimuat {state.fetchedAt.toLocaleTimeString('id-ID')}</span>
           </div>
-          {!operatorId && <p className="inline-error" role="alert">Akun ini belum memiliki claim ID operator domain. Pengiriman dinonaktifkan sampai Service Owner memetakan claim operatorId.</p>}
           {!rentalEtag && <p className="inline-error" role="alert">Service tidak memberikan ETag rental; inspeksi belum dapat dikirim dengan aman.</p>}
           <form className="inspection-form" onSubmit={(event) => void submitInspection(event)}>
             <label htmlFor="inspection-status">Hasil pemeriksaan</label>
@@ -590,7 +583,7 @@ function InspectionPage() {
             {fieldErrors.defectSummary && <span className="field-error" role="alert">{fieldErrors.defectSummary}</span>}
 
             {formError && <p className="form-error" role="alert">{formError}</p>}
-            <button className="primary-button" type="submit" disabled={submitting || !operatorId || !rentalEtag}>
+            <button className="primary-button" type="submit" disabled={submitting || !rentalEtag}>
               {submitting ? 'Mengirim...' : 'Kirim hasil inspeksi'}
             </button>
           </form>

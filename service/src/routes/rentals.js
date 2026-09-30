@@ -23,6 +23,7 @@ const rentalStore = require('../store/rentals');
 const idempotencyStore = require('../store/idempotency');
 const inspectionStore = require('../store/inspections');
 const { requireScope } = require('../auth/require-scope');
+const { requireActorId } = require('../auth/require-actor-id');
 const ownership = require('../auth/ownership');
 const conditional = require('../middleware/conditional');
 
@@ -43,10 +44,10 @@ router.get(
       if (req.query.status) filters.status = req.query.status;
 
       // Constrain query to principal's ownership context (Session 4: Step 8d)
-      if (req.principal?.subject?.startsWith('adm_') || req.principal?.subject?.includes('admin')) {
-        filters.warehouseAdminId = req.principal.subject;
-      } else if (req.principal?.subject) {
-        filters.contractorId = req.principal.subject;
+      if (req.principal?.actorId?.startsWith('adm_')) {
+        filters.warehouseAdminId = req.principal.actorId;
+      } else if (req.principal?.actorId) {
+        filters.contractorId = req.principal.actorId;
       }
 
       const rows = await rentalStore.getAllRentals(filters);
@@ -76,6 +77,7 @@ router.get(
 router.post(
   '/rentals',
   requireScope('rentals:write'),
+  requireActorId,
   schemas.validateIdempotencyKeyHeader, // ← Contract Owner guard: header required + uuid
   schemas.validateCreateRentalBody,     // ← Contract Owner guard: body required fields + format
   async (req, res) => {
@@ -117,7 +119,7 @@ router.post(
       // --- Create rental ---
       const row = await rentalStore.insertRental({
         equipmentId: body.equipmentId,
-        contractorId: body.contractorId,
+        contractorId: req.principal.actorId,
         warehouseAdminId: body.warehouseAdminId,
         startTime: body.startTime,
         endTime: body.endTime,
@@ -203,6 +205,7 @@ router.get(
 router.post(
   '/rentals/:id/inspections',
   requireScope('inspections:write'),
+  requireActorId,
   schemas.validateRentalIdParam,          // ← Contract Owner guard: path param
   schemas.validateIdempotencyKeyHeader,   // ← Contract Owner guard: header required + uuid
   schemas.validateCreateInspectionBody,   // ← Contract Owner guard: body fields + format
@@ -250,7 +253,7 @@ router.post(
       }
 
       // --- Layer 3: Object ownership & operator check BEFORE any change ---
-      if (!ownership.mayCreateInspection(req.principal, rental, body)) {
+      if (!ownership.mayCreateInspection(req.principal, rental)) {
         return problem.notFound(
           res,
           `Rental ${rentalId} does not exist.`,
@@ -322,7 +325,7 @@ router.post(
       const row = await inspectionStore.insertInspection({
         rentalId,
         equipmentId: body.equipmentId,
-        operatorId: body.operatorId,
+        operatorId: req.principal.actorId,
         status: body.status,
         inspectedAt: body.inspectedAt,
         notes: body.notes,

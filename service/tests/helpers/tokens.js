@@ -104,6 +104,7 @@ async function tokenFor(subject, scopes = [], extraClaims = {}) {
 
   try {
     const jwt = await new SignJWT({
+      actor_id: subject,
       scope: scopeString,
       ...extraClaims,
     })
