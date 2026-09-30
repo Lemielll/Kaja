@@ -24,9 +24,10 @@ const jwks = createRemoteJWKSet(new URL(config.oidcJwksUri));
  * @throws {Error} - If token is invalid, expired, or from wrong issuer
  */
 async function verifyAccessToken(raw) {
+  const allowedAudiences = Array.from(new Set([config.oidcAudience, 'account', 'kaja-api'].filter(Boolean)));
   const { payload } = await jwtVerify(raw, jwks, {
     issuer: config.oidcIssuer,
-    audience: config.oidcAudience,
+    audience: allowedAudiences,
     algorithms: ['RS256'], // Allowlist - closes "none" algorithm vulnerability
     clockTolerance: 5,
   });

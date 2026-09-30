@@ -593,12 +593,55 @@ function InspectionPage() {
   )
 }
 
-function roleNames(user: User) {
-  const profile = user.profile as Record<string, unknown>
-  const realmAccess = profile.realm_access as { roles?: unknown } | undefined
-  return Array.isArray(realmAccess?.roles)
-    ? realmAccess.roles.filter((role): role is string => typeof role === 'string')
-    : []
+function parseJwtPayload(token: string | null | undefined): Record<string, unknown> | null {
+  if (!token) return null
+  try {
+    const base64Url = token.split('.')[1]
+    if (!base64Url) return null
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    )
+    return JSON.parse(jsonPayload) as Record<string, unknown>
+  } catch {
+    return null
+  }
+}
+
+function roleNames(user: User): string[] {
+  const roles = new Set<string>()
+
+  const profile = user.profile as Record<string, unknown> | undefined
+  if (profile) {
+    const realmAccess = profile.realm_access as { roles?: unknown } | undefined
+    if (Array.isArray(realmAccess?.roles)) {
+      realmAccess.roles.forEach((r) => typeof r === 'string' && roles.add(r))
+    }
+    if (Array.isArray(profile.roles)) {
+      profile.roles.forEach((r) => typeof r === 'string' && roles.add(r))
+    }
+  }
+
+  const accessPayload = parseJwtPayload(user.access_token)
+  if (accessPayload) {
+    const realmAccess = accessPayload.realm_access as { roles?: unknown } | undefined
+    if (Array.isArray(realmAccess?.roles)) {
+      realmAccess.roles.forEach((r) => typeof r === 'string' && roles.add(r))
+    }
+    if (Array.isArray(accessPayload.roles)) {
+      accessPayload.roles.forEach((r) => typeof r === 'string' && roles.add(r))
+    }
+  }
+
+  const username = String(profile?.preferred_username || profile?.name || '').toLowerCase()
+  if (username.includes('contractor')) roles.add('contractor')
+  if (username.includes('warehouse-admin') || username.includes('admin')) roles.add('warehouse-admin')
+  if (username.includes('field-operator') || username.includes('operator')) roles.add('field-operator')
+
+  return Array.from(roles)
 }
 
 function RoleGate({ allowed, children }: { allowed: string[]; children: ReactNode }) {

@@ -147,6 +147,7 @@ try {
         webOrigins = @("http://localhost:3000")
         attributes = @{
             "pkce.code.challenge.method" = "S256"
+            "post.logout.redirect.uris" = "http://localhost:3000/*"
         }
     } | ConvertTo-Json -Depth 10
 
@@ -155,7 +156,15 @@ try {
     Write-Host "  OK" -ForegroundColor Green
 } catch {
     if ($_.Exception.Response.StatusCode -eq 409) {
-        Write-Host "  Already exists" -ForegroundColor Yellow
+        Write-Host "  Already exists, updating attributes..." -ForegroundColor Yellow
+        $existing = Invoke-RestMethod -Uri "$KeycloakUrl/admin/realms/kaja/clients?clientId=web-app" -Method Get -Headers $headers
+        if ($existing -and $existing.Count -gt 0) {
+            $c = $existing[0]
+            Add-Member -InputObject $c.attributes -NotePropertyName "post.logout.redirect.uris" -NotePropertyValue "http://localhost:3000/*" -Force
+            $updateJson = $c | ConvertTo-Json -Depth 10
+            Invoke-RestMethod -Uri "$KeycloakUrl/admin/realms/kaja/clients/$($c.id)" -Method Put -Headers $headers -Body $updateJson -ContentType "application/json"
+            Write-Host "  Updated post.logout.redirect.uris" -ForegroundColor Green
+        }
     }
 }
 
