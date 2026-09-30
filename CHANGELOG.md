@@ -1,5 +1,31 @@
 # Contract changelog
 
+## 2026-09-30 — Contract Owner and Service Owner: Actor identity claim
+
+Versi API: **1.3.0 → 2.0.0**. This breaking request-shape change makes the
+verified `actor_id` token claim the source of caller identity for rental and
+inspection creation. The identity provider's `sub` remains a separate subject
+identifier and is not treated as a domain ID.
+
+### Diubah
+
+- `POST /rentals` no longer accepts `contractorId`; the service derives it from
+  the authenticated token's verified `actor_id` claim.
+- `POST /rentals/{id}/inspections` no longer accepts `operatorId`; the service
+  derives it from the authenticated token's verified `actor_id` claim.
+- `warehouseAdminId` remains a required rental input because it identifies the
+  assigned warehouse admin, not the caller.
+- Rental and inspection responses continue to include their actor ID fields.
+
+### Konsekuensi
+
+- User access tokens used for actor-scoped writes MUST carry `actor_id` as the
+  corresponding opaque domain actor ID. Clients MUST NOT send caller identity
+  in request bodies. Tokens without a valid `actor_id` are unusable for these
+  operations and receive `401 Unauthorized`.
+- SVC must implement and test the mapping before the revised write contract is
+  deployed.
+
 ## 2026-09-30 — Contract Owner: Conditional inspection writes
 
 Versi API: **1.2.0 → 1.3.0**. This backward-compatible addition documents the

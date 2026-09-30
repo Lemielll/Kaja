@@ -84,7 +84,7 @@ implementasi service saat ini.
 Schema `Problem` kini menetapkan item `invalid-params` dengan `field` dan
 `reason`. Client API layer memetakan struktur ini menjadi error field-level.
 
-### C5. Opaque actor ID tidak dapat diturunkan dari principal OIDC
+### C5. Opaque actor ID tidak dapat diturunkan dari principal OIDC — selesai
 
 `POST /rentals` mewajibkan `contractorId` dan `warehouseAdminId`, sedangkan
 `POST /rentals/{id}/inspections` mewajibkan `operatorId`. Contoh/seed data
@@ -96,10 +96,17 @@ didokumentasikan pada kontrak atau konfigurasi web client.
 menganggap UUID `sub` sebagai ID domain. Payload write belum dapat dibentuk
 secara konsisten dengan identitas terautentikasi.
 
-**Keputusan yang diminta:** Contract Owner dan Service Owner menyepakati sumber
-ID domain, misalnya claim terverifikasi yang dipetakan server-side, atau
-menghapus field identitas aktor dari body dan menurunkannya di backend. Client
-tidak akan mengirim write dengan identitas buatan.
+**Keputusan Contract Owner dan Service Owner:** claim terverifikasi `actor_id`
+pada access token adalah ID domain aktor pemanggil; `sub` tetap merupakan ID
+subject dari identity provider dan tidak diasumsikan sebagai ID domain.
+`POST /rentals` menurunkan `contractorId` dari `actor_id`, sedangkan
+`POST /rentals/{id}/inspections` menurunkan `operatorId` dari `actor_id`.
+`warehouseAdminId` tetap dikirim sebagai ID admin yang ditugaskan pada rental,
+bukan sebagai identitas pemanggil. Kedua ID pemanggil dihapus dari request
+body OpenAPI; response tetap memuat ID tersebut. Claim `actor_id` harus dipetakan
+server-side ke ID domain opaque dan diverifikasi oleh SVC. Client tidak boleh
+mengirim atau menebak identitas pemanggil. Perubahan kontrak dicatat pada versi
+2.0.0; implementasi mapping oleh service masih menjadi tindak lanjut SVC.
 
 ## Temuan Autentikasi Sesi 4
 
