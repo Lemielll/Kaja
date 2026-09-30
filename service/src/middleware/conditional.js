@@ -2,12 +2,12 @@
  * HTTP Conditional Request Utilities
  * File: service/src/middleware/conditional.js
  * 
- * Session 5 - Step 8 & 9: ETag and If-Match support
+ * Session 5: ETag and If-Match support for efficient polling and conflict detection
  * 
  * Implements:
- * - ETag generation (GUIDE.md 7.5)
- * - If-None-Match → 304 (conditional read)
- * - If-Match → 412 (conditional write)
+ * - ETag generation (SHA-256 hash of body content)
+ * - If-None-Match → 304 (conditional read - saves bandwidth)
+ * - If-Match → 412 (conditional write - optimistic locking)
  * 
  * Requirements:
  * - ETag deterministic from body content (no timestamp)

@@ -10,9 +10,10 @@ Against local database:
 psql $DATABASE_URL -f service/db/migrations/001_add_version_columns.sql
 ```
 
-Against deployed database (requires approval - GUIDE.md R12):
+Against deployed database (requires manual approval):
 ```bash
 # Get DATABASE_URL from Render dashboard
+# IMPORTANT: Backup database before running migrations in production
 psql "<production-url>" -f service/db/migrations/001_add_version_columns.sql
 ```
 
@@ -22,7 +23,7 @@ psql "<production-url>" -f service/db/migrations/001_add_version_columns.sql
 |---|---|---|---|
 | 001 | 2026-09-30 | Add version columns for optimistic locking | Ready for deployment |
 
-## Schema evolution rules (GUIDE.md 8.8)
+## Schema evolution rules
 
 1. Never edit migrations that have already run in deployment
 2. Always create a new migration file for schema changes

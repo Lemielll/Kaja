@@ -2,9 +2,9 @@
  * CORS Middleware
  * File: service/src/middleware/cors.js
  * 
- * Session 5 - Step 4: CORS Configuration
+ * Session 5: CORS Configuration for Web Application
  * 
- * Requirements (GUIDE.md 7.4):
+ * Requirements:
  * - Allowlist explicit origins (no wildcard with credentials)
  * - Vary: Origin on ALL responses
  * - Expose ETag, Location, Retry-After
@@ -37,7 +37,7 @@ function cors(req, res, next) {
   const origin = req.headers.origin;
   const isPreflight = req.method === 'OPTIONS' && req.headers['access-control-request-method'];
 
-  // Vary: Origin MUST be present on ALL responses (GUIDE.md R5)
+  // Vary: Origin MUST be present on ALL responses
   res.vary('Origin');
 
   // If origin is in allowlist, grant access
