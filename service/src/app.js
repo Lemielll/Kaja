@@ -11,8 +11,15 @@ const db = require('./store/db');
 const problem = require('./problem');
 const { authenticate } = require('./auth/authenticate');
 const logger = require('./logger');
+const cors = require('./middleware/cors');
 
 const app = express();
+
+// 1. CORS Middleware (Session 5: Step 4)
+// MUST be registered BEFORE authentication so preflight requests (OPTIONS)
+// receive CORS headers without requiring a token.
+// CORS headers must appear on ALL responses including 401/403/404/412/500.
+app.use(cors);
 
 // Invalid JSON is an input error, not an internal server error.  Keeping this
 // middleware before every route also guarantees the contract error media type.
