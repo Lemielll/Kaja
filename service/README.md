@@ -6,6 +6,10 @@ Public service: [https://kaja-service-0cns.onrender.com](https://kaja-service-0c
 
 Health check: [https://kaja-service-0cns.onrender.com/health](https://kaja-service-0cns.onrender.com/health)
 
+`/health` is an operational health check, not a product API operation. It is
+intentionally excluded from `openapi.yaml` and returns HTTP 200 with
+`{"status":"pass"}` without authentication or checking external dependencies.
+
 API base URL: `https://kaja-service-0cns.onrender.com/v1`
 
 ## Authentication scope vocabulary (Session 4)

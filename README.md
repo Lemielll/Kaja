@@ -116,7 +116,14 @@ do not count as service calls.
 | Contractor tracks a rental | Rental detail | Contractor | `GET /rentals/{id}` | 1 |
 | Field operator submits an inspection | Inspection form for an assigned rental | Field operator | `POST /rentals/{id}/inspections` | 1 |
 
-### Contract findings for workflow planning
+### Contract validation and findings for workflow planning
+
+The Contract Owner verified that every operation listed in the A.1 workflow
+table exists in `openapi.yaml`: `GET /equipments` (`listEquipments`),
+`GET /rentals` (`listRentals`), `POST /rentals` (`createRental`),
+`GET /rentals/{id}` (`getRentalById`), and
+`POST /rentals/{id}/inspections` (`createInspection`). No listed operation is
+missing from the contract.
 
 - The contract has no operation for a contractor to check equipment
   availability for a requested time range; the client can only use the
