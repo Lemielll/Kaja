@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Heavy Equipment Rental System API
-  version: 1.1.0
+  version: 1.2.0
   license:
     name: Apache License 2.0
     identifier: Apache-2.0
@@ -25,6 +25,7 @@ paths:
         - oauth2:
             - equipment:read
       parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
         - name: status
           in: query
           required: false
@@ -54,12 +55,17 @@ paths:
       responses:
         '200':
           description: Equipment collection retrieved successfully.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: '#/components/schemas/Equipment'
+        '304':
+          $ref: '#/components/responses/NotModified'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -77,6 +83,7 @@ paths:
         - oauth2:
             - rentals:read
       parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
         - name: status
           in: query
           required: false
@@ -95,12 +102,17 @@ paths:
       responses:
         '200':
           description: Rental collection retrieved successfully.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: '#/components/schemas/Rental'
+        '304':
+          $ref: '#/components/responses/NotModified'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -204,13 +216,19 @@ paths:
             type: string
             pattern: '^[a-z]+_[A-Za-z0-9]{6,12}$'
             example: rnt_3MnB7xP
+        - $ref: '#/components/parameters/IfNoneMatch'
       responses:
         '200':
           description: Rental record retrieved successfully.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Rental'
+        '304':
+          $ref: '#/components/responses/NotModified'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -551,7 +569,21 @@ components:
           type: string
           pattern: '^[a-z]+_[A-Za-z0-9]{6,12}$'
           example: rnt_3MnB7xP
+  parameters:
+    IfNoneMatch:
+      name: If-None-Match
+      in: header
+      required: false
+      description: Return 304 when the selected representation matches one of these entity tags, using weak comparison; `*` matches any current representation.
+      schema:
+        type: string
+      example: '"rental-list-v1"'
   responses:
+    NotModified:
+      description: The selected representation has not changed. The response has no body.
+      headers:
+        ETag:
+          $ref: '#/components/headers/ETag'
     Unauthorized:
       description: Authentication is required or the supplied bearer token is invalid, expired, or otherwise unusable.
       content:
@@ -679,6 +711,11 @@ components:
                 detail: A return inspection cannot be submitted before rental activation.
                 instance: /v1/rentals/rnt_3MnB7xP/inspections
   headers:
+    ETag:
+      description: Deterministic opaque entity tag for the selected representation; unchanged representations MUST retain the same value.
+      schema:
+        type: string
+        example: '"equipment-list-v1"'
     RetryAfter:
       description: Present only when a request with the same idempotency key and body is still being processed; retry after this number of seconds.
       schema:

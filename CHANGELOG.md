@@ -1,5 +1,23 @@
 # Contract changelog
 
+## 2026-09-30 — Contract Owner: Conditional GET validators
+
+Versi API: **1.1.0 → 1.2.0**. This backward-compatible addition lets clients
+validate cached GET representations without retransmitting unchanged bodies.
+
+### Ditambahkan
+
+- Optional `If-None-Match` request header and `ETag` response header for
+  `GET /equipments`, `GET /rentals`, and `GET /rentals/{id}`.
+- `304 Not Modified` responses with no body for matching validators.
+- Deterministic representation-specific ETags, including the current query
+  filters, so validators identify the selected representation.
+
+### Tidak diubah
+
+- Collection pagination is not introduced; the current collection contract
+  does not define pagination.
+
 ## 2026-09-30 — Contract Owner: Structured validation details
 
 Versi API: **1.0.0 → 1.1.0**. This backward-compatible addition standardizes
