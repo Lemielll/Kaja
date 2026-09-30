@@ -192,13 +192,13 @@ async function main() {
   //   GET /equipments               → equipment:read
   //   GET/POST /rentals             → rentals:read + rentals:write
   //   POST /rentals/:id/inspections → inspections:write
-  const token = await tokenFor('svc_contract_check', [
+  const token = await tokenFor('ctr_72Xp9C', [
     'equipment:read',    // GET /equipments
     'rentals:read',      // GET /rentals, GET /rentals/:id/inspections
     'rentals:write',     // POST /rentals
     'inspections:write', // POST /rentals/:id/inspections
   ]);
-  console.log('[contract:auth] Token RS256 diterbitkan (subject: svc_contract_check).');
+  console.log('[contract:auth] Token RS256 diterbitkan (subject: ctr_72Xp9C).');
 
   // ── 5. Resolve BASE_URL ───────────────────────────────────────────────────
   const baseUrl = useInMemory

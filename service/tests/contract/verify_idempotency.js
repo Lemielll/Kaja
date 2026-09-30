@@ -42,7 +42,7 @@ async function run() {
   console.log(`Idempotency-Key: ${idempotencyKey}`);
 
   // Generate token otorisasi lokal dengan scope yang dibutuhkan
-  const token = await tokenFor('svc_idempotency_check', [
+  const token = await tokenFor('ctr_72Xp9C', [
     'rentals:write',
     'rentals:read',
     'equipments:read',
