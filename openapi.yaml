@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Heavy Equipment Rental System API
-  version: 1.0.0
+  version: 1.1.0
   license:
     name: Apache License 2.0
     identifier: Apache-2.0
@@ -521,6 +521,23 @@ components:
           type: string
           format: uri-reference
           example: https://api.domain.example/v1/rentals
+        invalid-params:
+          type: array
+          description: Optional details identifying request fields that caused the problem.
+          items:
+            type: object
+            required:
+              - field
+              - reason
+            properties:
+              field:
+                type: string
+                description: Request location and field name, such as body.startTime or header.Idempotency-Key.
+                example: body.startTime
+              reason:
+                type: string
+                description: Human-readable explanation of the field error.
+                example: Must be strictly before body.endTime.
         unavailableDates:
           type: array
           items:
@@ -562,6 +579,9 @@ components:
                 status: 400
                 detail: Idempotency-Key is required for this operation and must be a valid UUID.
                 instance: /v1/rentals
+                invalid-params:
+                  - field: header.Idempotency-Key
+                    reason: The header is required and must be a valid UUID.
     NotFound:
       description: The requested resource does not exist or is not visible to the caller. Both conditions return the same status and response body to prevent object ID enumeration.
       content:
@@ -639,6 +659,9 @@ components:
                 status: 422
                 detail: "startTime '2026-09-18T17:00:00Z' must be strictly before endTime '2026-09-15T08:00:00Z'."
                 instance: /v1/rentals
+                invalid-params:
+                  - field: body.startTime
+                    reason: Must be strictly before body.endTime.
             rentalRuleViolation:
               summary: Rental violates a business rule.
               value:

@@ -1,5 +1,25 @@
 # Contract changelog
 
+## 2026-09-30 — Contract Owner: Structured validation details
+
+Versi API: **1.0.0 → 1.1.0**. This backward-compatible addition standardizes
+field-level validation details without changing existing status-code semantics.
+
+### Ditambahkan
+
+- Optional `Problem.invalid-params`, an array of `{ field, reason }` entries,
+  with examples for malformed or missing `Idempotency-Key` (`400`) and a
+  business-rule validation failure (`422`).
+- Contract guidance for clients to associate validation feedback with the
+  relevant request field.
+
+### Dipertahankan
+
+- Missing or malformed `Idempotency-Key` remains `400 Bad Request`.
+- `422 Unprocessable Entity` remains reserved for structurally valid requests
+  that violate a business rule.
+- The required `Idempotency-Key` header and its UUID format are unchanged.
+
 ## 2026-09-23 — Contract Owner: Authentication and authorization boundary
 
 Versi API: **0.1.1 → 1.0.0**. This is a breaking change because all existing
