@@ -1,0 +1,39 @@
+# Railway deployment configuration
+# Docs: https://docs.railway.app/reference/config-as-code
+
+# Keycloak auth service
+[environments.production.services.kaja-auth]
+  builder = "DOCKERFILE"
+  dockerfilePath = "infra/Dockerfile.keycloak"
+  dockerContext = "infra"
+  
+  [environments.production.services.kaja-auth.deploy]
+    restartPolicyType = "ON_FAILURE"
+    restartPolicyMaxRetries = 3
+  
+  [environments.production.services.kaja-auth.healthcheck]
+    path = "/realms/kaja"
+    timeout = 10
+    interval = 30
+
+# API service
+[environments.production.services.kaja-api]
+  builder = "NIXPACKS"
+  buildCommand = "npm install"
+  startCommand = "node src/app.js"
+  rootDirectory = "service"
+  
+  [environments.production.services.kaja-api.deploy]
+    restartPolicyType = "ON_FAILURE"
+  
+  [environments.production.services.kaja-api.healthcheck]
+    path = "/health"
+    timeout = 5
+    interval = 30
+
+# Web client (static)
+[environments.production.services.kaja-web]
+  builder = "NIXPACKS"
+  buildCommand = "npm ci && npm run build"
+  startCommand = "npx serve dist -l $PORT"
+  rootDirectory = "clients/web"
