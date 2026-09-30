@@ -196,6 +196,58 @@ function forbidden(res, needed = []) {
 }
 
 // ---------------------------------------------------------------------------
+// 412 Precondition Failed
+// Session 5: Conditional write (If-Match)
+// ---------------------------------------------------------------------------
+
+/**
+ * Sends a 412 Precondition Failed problem response.
+ * Use when If-Match header does not match current ETag (optimistic locking failure).
+ *
+ * @param {import('express').Response} res
+ * @param {string} detail   - Domain-specific message explaining the conflict
+ * @param {string} instance - Request URI
+ * @param {string} [currentETag] - Current ETag to help client retry
+ */
+function preconditionFailed(res, detail, instance, currentETag = null) {
+  if (currentETag) {
+    res.set('ETag', currentETag);
+  }
+  const body = buildProblem({
+    type: `${BASE_PROBLEM_URI}/precondition-failed`,
+    title: 'Precondition failed',
+    status: 412,
+    detail,
+    instance,
+  });
+  return res.status(412).type('application/problem+json').json(body);
+}
+
+// ---------------------------------------------------------------------------
+// 428 Precondition Required
+// Session 5: If-Match required but missing (optional, needs contract coordination)
+// ---------------------------------------------------------------------------
+
+/**
+ * Sends a 428 Precondition Required problem response.
+ * Use when If-Match header is required but not provided.
+ *
+ * @param {import('express').Response} res
+ * @param {string} detail   - Explanation of which header is required
+ * @param {string} instance - Request URI
+ */
+function preconditionRequired(res, detail, instance) {
+  const body = buildProblem({
+    type: `${BASE_PROBLEM_URI}/precondition-required`,
+    title: 'Precondition required',
+    status: 428,
+    detail,
+    instance,
+  });
+  return res.status(428).type('application/problem+json').json(body);
+}
+
+// ---------------------------------------------------------------------------
 // 500 Internal Server Error (safety net — not in openapi.yaml contract)
 // ---------------------------------------------------------------------------
 
@@ -225,5 +277,7 @@ module.exports = {
   notFound,
   conflict,
   unprocessable,
+  preconditionFailed,
+  preconditionRequired,
   internalError,
 };
