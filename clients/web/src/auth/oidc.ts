@@ -1,6 +1,15 @@
 import { UserManager, WebStorageStateStore } from 'oidc-client-ts'
 
-const issuer = import.meta.env.VITE_OIDC_ISSUER || 'http://localhost:8080/realms/kaja'
+function normalizeIssuer(raw?: string): string {
+  if (!raw) return 'http://localhost:8080/realms/kaja'
+  let url = raw.trim()
+  if (!/^https?:\/\//i.test(url)) {
+    url = `https://${url}`
+  }
+  return url.replace(/\/+$/, '')
+}
+
+const issuer = normalizeIssuer(import.meta.env.VITE_OIDC_ISSUER)
 
 export const oidcUserManager = new UserManager({
   authority: issuer,

@@ -1,5 +1,19 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4010/v1').replace(/\/+$/, '')
-const API_ORIGIN = new URL(API_BASE_URL).origin
+function normalizeApiBaseUrl(rawUrl?: string): string {
+  if (!rawUrl) return 'http://localhost:4010/v1'
+  let url = rawUrl.trim()
+  if (!/^https?:\/\//i.test(url)) {
+    url = `https://${url}`
+  }
+  return url.replace(/\/+$/, '')
+}
+
+const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL)
+let API_ORIGIN = ''
+try {
+  API_ORIGIN = new URL(API_BASE_URL).origin
+} catch {
+  API_ORIGIN = typeof window !== 'undefined' ? window.location.origin : ''
+}
 let accessToken: string | null = null
 let unauthorizedHandler: (() => void) | null = null
 const responseCache = new Map<string, { data: unknown; etag: string }>()
