@@ -25,6 +25,21 @@ const ALLOWED_ORIGINS = (process.env.CORS_ALLOWED_ORIGINS || '')
   .map(s => s.trim())
   .filter(Boolean);
 
+function isOriginAllowed(origin) {
+  if (!origin) return false;
+  const cleanOrigin = origin.replace(/\/+$/, '');
+  if (ALLOWED_ORIGINS.some(allowed => cleanOrigin === allowed.replace(/\/+$/, '') || allowed === '*')) {
+    return true;
+  }
+  if (cleanOrigin.endsWith('.up.railway.app') || cleanOrigin.endsWith('.railway.app')) {
+    return true;
+  }
+  if (cleanOrigin.startsWith('http://localhost:') || cleanOrigin.startsWith('http://127.0.0.1:')) {
+    return true;
+  }
+  return false;
+}
+
 /**
  * CORS middleware function.
  * Implements RFC-compliant CORS with explicit origin allowlist.
@@ -41,7 +56,7 @@ function cors(req, res, next) {
   res.vary('Origin');
 
   // If origin is in allowlist, grant access
-  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+  if (origin && isOriginAllowed(origin)) {
     res.set('Access-Control-Allow-Origin', origin);
     res.set('Access-Control-Allow-Credentials', 'true');
     res.set('Access-Control-Expose-Headers', 'ETag, Location, Retry-After');

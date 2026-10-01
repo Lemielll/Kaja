@@ -31,7 +31,9 @@ async function initDb() {
     process.exitCode = 1;
   } finally {
     client.release();
-    await pool.end();
+    if (require.main === module) {
+      await pool.end();
+    }
   }
 }
 

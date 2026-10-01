@@ -87,6 +87,11 @@ const PORT = config.port;
 
 let server;
 if (require.main === module) {
+  if (process.env.DATABASE_URL) {
+    const { initDb } = require('../db/init');
+    initDb().catch((err) => console.error('[DB INIT ERROR] Startup migration failed:', err.message));
+  }
+
   server = app.listen(PORT, () => {
     console.log(`[SERVICE READY] Heavy Equipment Rental Service running on port ${PORT}`);
   });
