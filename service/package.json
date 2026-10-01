@@ -5,6 +5,7 @@
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
+    "db:init": "node db/init.js",
     "dev": "node --watch src/app.js",
     "test": "node tests/contract/client_contract_unit.js && node tests/contract/service_store_unit.js && node tests/contract/route_inspection_unit.js && node tests/authz/authz.test.js",
     "test:contract": "node tests/contract/contract_with_auth.js",
