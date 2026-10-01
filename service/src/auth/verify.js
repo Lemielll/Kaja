@@ -30,19 +30,6 @@ async function getJose() {
 // Eagerly initiate import so JWKS is initialized ahead of first request
 getJose().catch(() => {});
 
-const REALM_PUBLIC_KEY = process.env.KEYCLOAK_REALM_PUBLIC_KEY || 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsngWSd+dZyeJPNwVPb6T7dmsp2I98T1aeoBrBc5denflCaOn8yU7jpalvrFe2+lsST8Hiwrjm0YIK7VM36aTAaBD2o4maXly0AynOTK/4xbPMn/Htk/PGShyrWEqieqvczL6htmotj1LOM5wJausYUfGnlRv5UYxnOMdvIDxDp80o8aCUQHHPCRvS/T9phTiVPX3dXReoXv2G8n/bzCI68f8xk/wxmLnOI//GgLphEau12jsddekoJuTTg1ayuObIQe9sfTAxazFS9vSnW9Qtnk/jDoEihUp5TfZ4taPF78kGcv49/DwCEZKMFODmPyeSs+XUxQTDCZvKg3SrBsmpQIDAQAB';
-
-let fallbackKeyPromise = null;
-async function getFallbackKey(jose) {
-  if (!fallbackKeyPromise && REALM_PUBLIC_KEY) {
-    fallbackKeyPromise = (async () => {
-      const spki = '-----BEGIN PUBLIC KEY-----\n' + REALM_PUBLIC_KEY.match(/.{1,64}/g).join('\n') + '\n-----END PUBLIC KEY-----';
-      return jose.importSPKI(spki, 'RS256').catch(() => null);
-    })();
-  }
-  return fallbackKeyPromise;
-}
-
 /**
  * Verifies an access token and returns its claims.
  * 
@@ -71,37 +58,8 @@ async function verifyAccessToken(raw) {
     clockTolerance: 10,
   };
 
-  try {
-    if (jwks) {
-      const { payload } = await jose.jwtVerify(raw, jwks, verifyOptions);
-      return payload;
-    }
-  } catch (err) {
-    // If remote JWKS verification fails, attempt verification with fallback public key
-  }
-
-  const fallbackKey = await getFallbackKey(jose);
-  if (fallbackKey) {
-    try {
-      const { payload } = await jose.jwtVerify(raw, fallbackKey, verifyOptions);
-      return payload;
-    } catch {
-      try {
-        const { payload: unverified } = jose.decodeJwt(raw);
-        if (unverified && (unverified.azp === 'web-app' || String(unverified.iss || '').endsWith('/realms/kaja'))) {
-          const { payload } = await jose.jwtVerify(raw, fallbackKey, {
-            algorithms: ['RS256'],
-            clockTolerance: 30,
-          });
-          return payload;
-        }
-      } catch {
-        // Fall through to error
-      }
-    }
-  }
-
-  throw new Error('Unable to verify token signature');
+  const { payload } = await jose.jwtVerify(raw, jwks, verifyOptions);
+  return payload;
 }
 
 module.exports = { verifyAccessToken };
