@@ -1394,7 +1394,7 @@ function SignInPage() {
   const { signIn } = useAuth()
   const location = useLocation()
   const [error, setError] = useState('')
-  const routeState = location.state as { sessionExpired?: boolean; loginFailed?: boolean } | null
+  const routeState = location.state as { sessionExpired?: boolean; loginFailed?: boolean; errorMessage?: string } | null
   const returnTo = location.pathname === '/sign-in'
     ? '/rentals'
     : `${location.pathname}${location.search}`
@@ -1456,7 +1456,7 @@ function SignInPage() {
         {routeState?.loginFailed && (
           <div className="inline-error" role="alert" style={{ justifyContent: 'center' }}>
             <WarningCircle size={16} />
-            <span>Autentikasi tidak berhasil. Coba masuk kembali.</span>
+            <span>{routeState.errorMessage ? `Autentikasi tidak berhasil: ${routeState.errorMessage}` : 'Autentikasi tidak berhasil. Coba masuk kembali.'}</span>
           </div>
         )}
         {error && (

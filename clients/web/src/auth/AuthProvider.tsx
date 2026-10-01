@@ -39,11 +39,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(activeUser)
           setAccessToken(activeUser?.access_token ?? null)
         }
-      } catch {
+      } catch (err: unknown) {
+        console.error('[AUTH ERROR] Authentication callback failed:', err)
         if (!active) return
         setUser(null)
         setAccessToken(null)
-        navigate('/sign-in', { replace: true, state: { loginFailed: true } })
+        const errorMessage = err instanceof Error ? err.message : String(err)
+        navigate('/sign-in', { replace: true, state: { loginFailed: true, errorMessage } })
       } finally {
         if (active) setLoading(false)
       }

@@ -39,9 +39,18 @@ getJose().catch(() => {});
  */
 async function verifyAccessToken(raw) {
   const jose = await getJose();
+  const cleanIssuer = config.oidcIssuer ? config.oidcIssuer.replace(/\/+$/, '') : '';
+  const allowedIssuers = cleanIssuer
+    ? Array.from(new Set([
+        cleanIssuer,
+        `${cleanIssuer}/`,
+        cleanIssuer.replace(/^https:/, 'http:'),
+        cleanIssuer.replace(/^http:/, 'https:'),
+      ]))
+    : [];
   const allowedAudiences = Array.from(new Set([config.oidcAudience, 'account', 'kaja-api', 'web-app'].filter(Boolean)));
   const { payload } = await jose.jwtVerify(raw, jwks, {
-    issuer: config.oidcIssuer,
+    issuer: allowedIssuers.length ? allowedIssuers : undefined,
     audience: allowedAudiences,
     algorithms: ['RS256'], // Allowlist - closes "none" algorithm vulnerability
     clockTolerance: 5,
