@@ -9,27 +9,26 @@
 
 require('dotenv').config();
 
-// Required environment variables for service operation
-const required = [
-  'PORT',
-  'DATABASE_URL',
-  'OIDC_ISSUER',
-  'OIDC_JWKS_URI',
-  'OIDC_AUDIENCE',
-];
+// Default fallbacks for production deployment if environment variables were not explicitly injected
+const isProduction = process.env.NODE_ENV === 'production' || !!process.env.RAILWAY_ENVIRONMENT;
+const defaultIssuer = 'https://kaja-auth-production-6145.up.railway.app/realms/kaja';
+const defaultJwksUri = 'https://kaja-auth-production-6145.up.railway.app/realms/kaja/protocol/openid-connect/certs';
 
-const missing = required.filter((key) => !process.env[key]);
+const oidcIssuer = process.env.OIDC_ISSUER && !process.env.OIDC_ISSUER.includes('localhost')
+  ? process.env.OIDC_ISSUER
+  : (isProduction ? defaultIssuer : (process.env.OIDC_ISSUER || 'http://localhost:8080/realms/kaja'));
 
-if (missing.length > 0) {
-  console.error(`[FATAL STARTUP] Missing required environment variables: ${missing.join(', ')}`);
-  process.exit(1);
-}
+const oidcJwksUri = process.env.OIDC_JWKS_URI && !process.env.OIDC_JWKS_URI.includes('localhost')
+  ? process.env.OIDC_JWKS_URI
+  : (isProduction ? defaultJwksUri : (process.env.OIDC_JWKS_URI || 'http://localhost:8080/realms/kaja/protocol/openid-connect/certs'));
+
+const oidcAudience = process.env.OIDC_AUDIENCE || 'web-app';
 
 module.exports = {
   port: process.env.PORT || 4010,
   nodeEnv: process.env.NODE_ENV || 'development',
   databaseUrl: process.env.DATABASE_URL,
-  oidcIssuer: process.env.OIDC_ISSUER,
-  oidcJwksUri: process.env.OIDC_JWKS_URI,
-  oidcAudience: process.env.OIDC_AUDIENCE,
+  oidcIssuer,
+  oidcJwksUri,
+  oidcAudience,
 };
