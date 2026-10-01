@@ -43,7 +43,10 @@ async function authenticate(req, res, next) {
   } catch (err) {
     // Log rejection reason but NOT the token itself
     // Logger automatically redacts authorization headers
-    logger.warn({ reason: err.code ?? err.name }, 'token rejected');
+    const detail = err instanceof Error
+      ? err.message.replace(/\b[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, '[REDACTED]')
+      : 'Unknown token verification error';
+    logger.warn({ reason: err.code ?? err.name, detail }, 'token rejected');
     
     return unauthorized(res, 'invalid_token');
   }
