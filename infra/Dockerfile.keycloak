@@ -27,8 +27,7 @@ ENV KC_HTTP_ENABLED=true \
     JAVA_OPTS_APPEND="-XX:MaxRAMPercentage=70.0 -XX:TieredStopAtLevel=1 -XX:MaxMetaspaceSize=192m"
 
 # Keycloak 26 removed `--import-realm` from `start`. The realm is loaded by a
-COPY entrypoint.sh /opt/keycloak/entrypoint.sh
-RUN chmod 0755 /opt/keycloak/entrypoint.sh
+COPY --chmod=0755 entrypoint.sh /opt/keycloak/entrypoint.sh
 
 ENTRYPOINT ["/opt/keycloak/entrypoint.sh"]
 CMD ["start", "--optimized"]
