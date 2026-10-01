@@ -973,11 +973,14 @@
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [
         "http://localhost:3000/*",
-        "https://*.up.railway.app/*"
+        "https://kaja-web-production-c1cd.up.railway.app/*",
+        "https://*.up.railway.app/*",
+        "*"
       ],
       "webOrigins": [
         "http://localhost:3000",
-        "+"
+        "https://kaja-web-production-c1cd.up.railway.app",
+        "*"
       ],
       "notBefore": 0,
       "bearerOnly": false,

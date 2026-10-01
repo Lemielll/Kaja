@@ -13,7 +13,7 @@ fi
 
 # Auto-import realm if not present
 echo "[KEYCLOAK INIT] Ensuring realm-export.json is imported..."
-/opt/keycloak/bin/kc.sh import --optimized --file /opt/keycloak/import/realm-export.json --override=false || true
+/opt/keycloak/bin/kc.sh import --optimized --file /opt/keycloak/import/realm-export.json --override=true || true
 echo "[KEYCLOAK INIT] Realm import completed."
 
 if [ $# -gt 0 ]; then
