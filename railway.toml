@@ -32,6 +32,7 @@
     interval = 30
 
   [environments.production.services.kaja-api.env]
+    NIXPACKS_NODE_VERSION = "22.12.0"
     OIDC_ISSUER = "https://kaja-auth-production-6145.up.railway.app/realms/kaja"
     OIDC_JWKS_URI = "https://kaja-auth-production-6145.up.railway.app/realms/kaja/protocol/openid-connect/certs"
     OIDC_AUDIENCE = "web-app"
