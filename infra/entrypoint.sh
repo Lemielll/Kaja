@@ -11,13 +11,10 @@ if [ "$1" = "import" ]; then
   exec /opt/keycloak/bin/kc.sh "$@"
 fi
 
-# On single-container deployments (e.g. Railway), auto-import realm on initial startup
-if [ ! -f /opt/keycloak/data/realm_imported.lock ]; then
-  echo "[KEYCLOAK INIT] First run detected. Importing realm-export.json..."
-  /opt/keycloak/bin/kc.sh import --optimized --file /opt/keycloak/import/realm-export.json || true
-  touch /opt/keycloak/data/realm_imported.lock 2>/dev/null || true
-  echo "[KEYCLOAK INIT] Realm import completed."
-fi
+# Auto-import realm if not present
+echo "[KEYCLOAK INIT] Ensuring realm-export.json is imported..."
+/opt/keycloak/bin/kc.sh import --optimized --file /opt/keycloak/import/realm-export.json --override=false || true
+echo "[KEYCLOAK INIT] Realm import completed."
 
 if [ $# -gt 0 ]; then
   exec /opt/keycloak/bin/kc.sh "$@"
