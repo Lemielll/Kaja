@@ -19,7 +19,6 @@ export const oidcUserManager = new UserManager({
   response_type: 'code',
   scope: 'openid profile email equipment:read rentals:read rentals:write inspections:write',
   userStore: new WebStorageStateStore({ store: window.localStorage }),
-  stateStore: new WebStorageStateStore({ store: window.localStorage }),
-  automaticSilentRenew: false,
+  automaticSilentRenew: true,
   monitorSession: false,
 })
