@@ -34,6 +34,6 @@
 # Web client (static)
 [environments.production.services.kaja-web]
   builder = "NIXPACKS"
-  buildCommand = "npm ci && npm run build && cp serve.json dist/"
+  buildCommand = "npm ci && npm run build"
   startCommand = "npx serve -s dist -l $PORT"
   rootDirectory = "clients/web"
