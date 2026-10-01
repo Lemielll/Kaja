@@ -53,37 +53,44 @@ async function getFallbackKey(jose) {
 async function verifyAccessToken(raw) {
   const jose = await getJose();
   const cleanIssuer = config.oidcIssuer ? config.oidcIssuer.replace(/\/+$/, '') : '';
-  const allowedIssuers = cleanIssuer
-    ? Array.from(new Set([
-        cleanIssuer,
-        `${cleanIssuer}/`,
-        cleanIssuer.replace(/^https:/, 'http:'),
-        cleanIssuer.replace(/^http:/, 'https:'),
-      ]))
-    : [];
+  const allowedIssuers = Array.from(new Set([
+    cleanIssuer,
+    `${cleanIssuer}/`,
+    cleanIssuer.replace(/^https:/, 'http:'),
+    cleanIssuer.replace(/^http:/, 'https:'),
+    'https://kaja-auth-production-6145.up.railway.app/realms/kaja',
+    'https://kaja-auth-production-6145.up.railway.app/realms/kaja/',
+    'http://localhost:8080/realms/kaja',
+    'http://localhost:8080/realms/kaja/',
+  ].filter(Boolean)));
   const allowedAudiences = Array.from(new Set([config.oidcAudience, 'account', 'kaja-api', 'web-app'].filter(Boolean)));
   const verifyOptions = {
     issuer: allowedIssuers.length ? allowedIssuers : undefined,
     audience: allowedAudiences,
     algorithms: ['RS256'], // Allowlist - closes "none" algorithm vulnerability
-    clockTolerance: 5,
+    clockTolerance: 10,
   };
 
   try {
-    const { payload } = await jose.jwtVerify(raw, jwks, verifyOptions);
-    return payload;
-  } catch (err) {
-    const fallbackKey = await getFallbackKey(jose);
-    if (fallbackKey) {
-      try {
-        const { payload } = await jose.jwtVerify(raw, fallbackKey, verifyOptions);
-        return payload;
-      } catch {
-        // Fall through to throw original JWKS verification error
-      }
+    if (jwks) {
+      const { payload } = await jose.jwtVerify(raw, jwks, verifyOptions);
+      return payload;
     }
-    throw err;
+  } catch (err) {
+    // If remote JWKS verification fails, attempt verification with fallback public key
   }
+
+  const fallbackKey = await getFallbackKey(jose);
+  if (fallbackKey) {
+    try {
+      const { payload } = await jose.jwtVerify(raw, fallbackKey, verifyOptions);
+      return payload;
+    } catch {
+      // Fall through to throw error
+    }
+  }
+
+  throw new Error('Unable to verify token signature');
 }
 
 module.exports = { verifyAccessToken };
