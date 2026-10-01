@@ -37,3 +37,8 @@
   buildCommand = "npm ci && npm run build"
   startCommand = "npx serve -s dist -l $PORT"
   rootDirectory = "clients/web"
+  
+  [environments.production.services.kaja-web.env]
+    VITE_API_BASE_URL = "https://kaja-api-production.up.railway.app/v1"
+    VITE_OIDC_ISSUER = "https://kaja-auth-production-6145.up.railway.app/realms/kaja"
+    VITE_OIDC_CLIENT_ID = "web-app"
