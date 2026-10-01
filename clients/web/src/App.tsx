@@ -25,7 +25,7 @@ import {
 } from '@phosphor-icons/react'
 import { AuthProvider } from './auth/AuthProvider'
 import { useAuth } from './auth/context'
-import { ApiClientError, apiRequest, createIdempotencyKey, createInspection, createRental, fieldErrorsFromProblem, getEquipments, getRental, getRentals, invalidateApiResponse, type CreateInspectionInput, type CreateRentalInput, type Equipment, type Inspection, type Rental } from './lib/api'
+import { ApiClientError, apiRequest, createIdempotencyKey, createInspection, createRental, fieldErrorsFromProblem, getEquipments, getRental, getRentals, getRentalInspections, getInspections, invalidateApiResponse, type CreateInspectionInput, type CreateRentalInput, type Equipment, type Inspection, type Rental } from './lib/api'
 import './App.css'
 
 function WorkflowPage({ title, subtitle, kicker = 'Sistem Operasional Rental', children, actions }: {
@@ -114,6 +114,14 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium' }).format(new Date(value))
 }
 
+function formatDateTime(value: string) {
+  try {
+    return new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+  } catch {
+    return value
+  }
+}
+
 function localDateTime() {
   const date = new Date()
   date.setMinutes(date.getMinutes() - date.getTimezoneOffset())
@@ -122,6 +130,7 @@ function localDateTime() {
 
 function RentalListPage() {
   const [state, setState] = useState<ViewState<Rental[]>>({ status: 'loading' })
+  const [inspectionsMap, setInspectionsMap] = useState<Record<string, Inspection>>({})
   const [attempt, setAttempt] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'in_progress' | 'completed' | 'cancelled'>('all')
@@ -145,12 +154,30 @@ function RentalListPage() {
       controller = new AbortController()
 
       try {
-        const { data } = await getRentals(controller.signal)
+        const [rentalsRes, inspectionsRes] = await Promise.allSettled([
+          getRentals(controller.signal),
+          getInspections(controller.signal),
+        ])
         if (!active) return
-        const rows = data ?? []
-        setState(rows.length
-          ? { status: 'content', data: rows, fetchedAt: new Date(), stale: false }
-          : { status: 'empty', data: rows, fetchedAt: new Date() })
+
+        if (inspectionsRes.status === 'fulfilled' && inspectionsRes.value.data) {
+          const map: Record<string, Inspection> = {}
+          for (const item of inspectionsRes.value.data) {
+            if (!map[item.rentalId]) {
+              map[item.rentalId] = item
+            }
+          }
+          setInspectionsMap(map)
+        }
+
+        if (rentalsRes.status === 'fulfilled') {
+          const rows = rentalsRes.value.data ?? []
+          setState(rows.length
+            ? { status: 'content', data: rows, fetchedAt: new Date(), stale: false }
+            : { status: 'empty', data: rows, fetchedAt: new Date() })
+        } else {
+          throw rentalsRes.reason
+        }
       } catch (error: unknown) {
         if (!active || controller?.signal.aborted) return
         const message = rentalLoadError(error)
@@ -191,7 +218,7 @@ function RentalListPage() {
   // Metric counts
   const totalCount = rentals.length
   const approvedCount = rentals.filter((r) => r.status === 'approved' || r.status === 'active').length
-  const inProgressCount = rentals.filter((r) => r.status === 'in_progress').length
+  const inspectedPassCount = rentals.filter((r) => inspectionsMap[r.id]?.status === 'pass').length
   const completedCount = rentals.filter((r) => r.status === 'completed').length
 
   const headerActions = canCreateRentals ? (
@@ -278,11 +305,11 @@ function RentalListPage() {
             </div>
             <div className="metric-card">
               <div className="metric-content">
-                <span className="metric-label">Dalam Pelaksanaan</span>
-                <span className="metric-value">{inProgressCount}</span>
+                <span className="metric-label">Lulus Kelaikan</span>
+                <span className="metric-value">{inspectedPassCount}</span>
               </div>
-              <div className="metric-icon-wrap metric-icon--warning">
-                <ClockCountdown size={22} weight="duotone" />
+              <div className="metric-icon-wrap metric-icon--success">
+                <CheckCircle size={22} weight="duotone" />
               </div>
             </div>
             <div className="metric-card">
@@ -368,13 +395,14 @@ function RentalListPage() {
                   {isWarehouseAdmin && <th>Penyewa</th>}
                   <th>Periode Sewa</th>
                   <th className="col-center">Status</th>
+                  <th className="col-center">Audit Kelaikan</th>
                   <th className="col-center">Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredRentals.length === 0 ? (
                   <tr>
-                    <td colSpan={isWarehouseAdmin ? 6 : 5} style={{ textAlign: 'center', padding: '36px', color: 'var(--text-muted)' }}>
+                    <td colSpan={isWarehouseAdmin ? 7 : 6} style={{ textAlign: 'center', padding: '36px', color: 'var(--text-muted)' }}>
                       Tidak ada rental yang cocok dengan pencarian atau filter status.
                     </td>
                   </tr>
@@ -411,6 +439,33 @@ function RentalListPage() {
                         <span className={`status-pill status-pill--${rental.status}`}>
                           <span>{rentalStatusLabel(rental.status)}</span>
                         </span>
+                      </td>
+                      <td className="col-center">
+                        {inspectionsMap[rental.id] ? (
+                          <span
+                            className={`status-pill status-pill--${inspectionsMap[rental.id].status}`}
+                            title={`No. Laporan: ${inspectionsMap[rental.id].id} • Operator: ${inspectionsMap[rental.id].operatorId} • Catatan: ${inspectionsMap[rental.id].notes}`}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                          >
+                            {inspectionsMap[rental.id].status === 'pass' && <CheckCircle size={13} weight="bold" />}
+                            {inspectionsMap[rental.id].status === 'fail' && <WarningCircle size={13} weight="bold" />}
+                            {inspectionsMap[rental.id].status === 'pending_review' && <ClockCountdown size={13} weight="bold" />}
+                            <span>
+                              {inspectionsMap[rental.id].status === 'pass'
+                                ? 'Lulus'
+                                : inspectionsMap[rental.id].status === 'fail'
+                                ? 'Tidak Lulus'
+                                : inspectionsMap[rental.id].status === 'pending_review'
+                                ? 'Review'
+                                : inspectionsMap[rental.id].status}
+                            </span>
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <ClockCountdown size={12} />
+                            <span>Belum audit</span>
+                          </span>
+                        )}
                       </td>
                       <td className="col-center">
                         <NavLink className="table-action-link" to={`/rentals/${encodeURIComponent(rental.id)}`}>
@@ -811,6 +866,7 @@ function RentalDetailPage() {
   const isWarehouseAdmin = roles.includes('warehouse-admin')
 
   const [state, setState] = useState<ViewState<Rental>>({ status: 'loading' })
+  const [inspections, setInspections] = useState<Inspection[]>([])
   const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
@@ -835,10 +891,17 @@ function RentalDetailPage() {
           : { status: 'error', message: 'Detail rental gagal dimuat. Periksa koneksi lalu coba lagi.' })
       })
 
+    void getRentalInspections(id, controller.signal)
+      .then(({ data }) => {
+        if (data) setInspections(data)
+      })
+      .catch(() => {})
+
     return () => controller.abort()
   }, [attempt, id])
 
   const refresh = () => {
+    invalidateApiResponse(`/rentals/${encodeURIComponent(id)}/inspections`)
     setState((current) => current.status === 'content'
       ? { ...current, stale: true, error: undefined }
       : current)
@@ -1022,6 +1085,194 @@ function RentalDetailPage() {
               </div>
             )}
           </div>
+
+          {/* Section: Status & Riwayat Pemeriksaan Fisik (Inspeksi Lapangan) */}
+          <div style={{ marginTop: '28px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Wrench size={20} weight="duotone" style={{ color: 'var(--lime)' }} />
+                  <span>Keterangan & Audit Kelaikan Fisik (Inspeksi)</span>
+                </h3>
+                <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                  Laporan kepatuhan kelaikan teknis unit armada alat berat sebelum dan sesudah operasional.
+                </p>
+              </div>
+              {isOperator && (
+                <NavLink
+                  to={`/rentals/${encodeURIComponent(id)}/inspection`}
+                  className="primary-button"
+                  style={{ textDecoration: 'none', padding: '8px 14px', fontSize: '13px' }}
+                >
+                  <PlusCircle size={15} weight="bold" />
+                  <span>Inspeksi Baru</span>
+                </NavLink>
+              )}
+            </div>
+
+            {inspections.length === 0 ? (
+              <div className="view-message view-message--empty" style={{ padding: '28px', background: 'var(--bg-card)', borderRadius: '14px', border: '1px solid var(--border-main)' }}>
+                <div className="empty-icon-wrap">
+                  <ClockCountdown size={28} weight="duotone" />
+                </div>
+                <strong>Belum Ada Catatan Inspeksi</strong>
+                <p style={{ margin: '6px 0 0', fontSize: '13.5px', color: 'var(--text-secondary)' }}>
+                  Unit armada ini belum memiliki catatan laporan pemeriksaan fisik operasional dari operator lapangan.
+                </p>
+                {isOperator && (
+                  <div style={{ marginTop: '16px' }}>
+                    <NavLink
+                      to={`/rentals/${encodeURIComponent(id)}/inspection`}
+                      className="primary-button"
+                      style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                    >
+                      <Wrench size={16} weight="bold" /> Mulai Inspeksi Sekarang
+                    </NavLink>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Kartu Hasil Inspeksi Terkini */}
+                {(() => {
+                  const latest = inspections[0]
+                  const isPass = latest.status === 'pass'
+                  const isFail = latest.status === 'fail'
+                  return (
+                    <div
+                      style={{
+                        padding: '20px 24px',
+                        borderRadius: '16px',
+                        background: isPass
+                          ? 'rgba(74, 222, 128, 0.07)'
+                          : isFail
+                          ? 'rgba(239, 68, 68, 0.07)'
+                          : 'rgba(234, 179, 8, 0.07)',
+                        border: `1px solid ${
+                          isPass
+                            ? 'rgba(74, 222, 128, 0.28)'
+                            : isFail
+                            ? 'rgba(239, 68, 68, 0.28)'
+                            : 'rgba(234, 179, 8, 0.28)'
+                        }`,
+                        backdropFilter: 'blur(10px)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div
+                            style={{
+                              width: '42px',
+                              height: '42px',
+                              borderRadius: '12px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              background: isPass
+                                ? 'rgba(74, 222, 128, 0.18)'
+                                : isFail
+                                ? 'rgba(239, 68, 68, 0.18)'
+                                : 'rgba(234, 179, 8, 0.18)',
+                              color: isPass ? '#4ade80' : isFail ? '#ef4444' : '#eab308',
+                            }}
+                          >
+                            {isPass ? (
+                              <CheckCircle size={26} weight="duotone" />
+                            ) : isFail ? (
+                              <WarningCircle size={26} weight="duotone" />
+                            ) : (
+                              <ClockCountdown size={26} weight="duotone" />
+                            )}
+                          </div>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                {isPass
+                                  ? 'Hasil Kelaikan: LULUS (Unit Siap Operasi)'
+                                  : isFail
+                                  ? 'Hasil Kelaikan: TIDAK LULUS (Ada Temuan Kerusakan)'
+                                  : 'Hasil Kelaikan: DALAM PENINJAUAN'}
+                              </span>
+                            </div>
+                            <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>
+                              Laporan Resmi: <strong style={{ fontFamily: 'var(--mono)', color: 'var(--text-primary)' }}>{latest.id}</strong> • Diperiksa {formatDateTime(latest.inspectedAt)}
+                            </span>
+                          </div>
+                        </div>
+
+                        <span className={`status-pill status-pill--${latest.status}`} style={{ fontSize: '12px', padding: '4px 12px' }}>
+                          <span>{latest.status.toUpperCase()}</span>
+                        </span>
+                      </div>
+
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                          gap: '14px',
+                          marginTop: '12px',
+                          paddingTop: '14px',
+                          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                        }}
+                      >
+                        <div>
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>Petugas Pemeriksa:</span>
+                          <span style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--mono)' }}>{latest.operatorId}</span>
+                        </div>
+                        <div>
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>Catatan Pengamatan:</span>
+                          <span style={{ fontSize: '13.5px', color: 'var(--text-primary)', fontStyle: 'italic' }}>"{latest.notes || '-'}"</span>
+                        </div>
+                        {latest.defectSummary && (
+                          <div style={{ gridColumn: '1 / -1' }}>
+                            <span style={{ fontSize: '12px', color: '#ff8a80', display: 'block', fontWeight: 600, marginBottom: '2px' }}>Ringkasan Cacat / Kerusakan:</span>
+                            <span style={{ fontSize: '13.5px', color: 'var(--text-primary)' }}>{latest.defectSummary}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Riwayat Sebelumnya Jika > 1 */}
+                {inspections.length > 1 && (
+                  <div style={{ marginTop: '4px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>
+                      Riwayat Pemeriksaan Sebelumnya ({inspections.length} pemeriksaan tercatat)
+                    </span>
+                    <div className="table-wrap">
+                      <table className="rental-table" style={{ fontSize: '13px' }}>
+                        <thead>
+                          <tr>
+                            <th>No. Laporan</th>
+                            <th>Waktu Inspeksi</th>
+                            <th>Petugas</th>
+                            <th className="col-center">Status</th>
+                            <th>Catatan</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {inspections.map((insp) => (
+                            <tr key={insp.id}>
+                              <td><span className="table-id-badge">{insp.id}</span></td>
+                              <td>{formatDateTime(insp.inspectedAt)}</td>
+                              <td><span style={{ fontFamily: 'var(--mono)' }}>{insp.operatorId}</span></td>
+                              <td className="col-center">
+                                <span className={`status-pill status-pill--${insp.status}`}>
+                                  <span>{insp.status}</span>
+                                </span>
+                              </td>
+                              <td style={{ maxWidth: '320px', whiteSpace: 'normal', color: 'var(--text-secondary)' }}>{insp.notes}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </>
       )}
     </WorkflowPage>
@@ -1091,6 +1342,10 @@ function InspectionPage() {
       const { data } = await createInspection(id, payload, idempotencyKey, rentalEtag)
       if (data) {
         setSubmittedInspection(data)
+        invalidateApiResponse(`/rentals/${encodeURIComponent(id)}`)
+        invalidateApiResponse(`/rentals/${encodeURIComponent(id)}/inspections`)
+        invalidateApiResponse('/rentals')
+        invalidateApiResponse('/inspections')
       }
     } catch (error: unknown) {
       if (!(error instanceof ApiClientError)) {
@@ -1503,6 +1758,7 @@ function SignInPage() {
 
 function InspectionStartPage() {
   const [state, setState] = useState<ViewState<Rental[]>>({ status: 'loading' })
+  const [inspectionsMap, setInspectionsMap] = useState<Record<string, Inspection>>({})
   const [attempt, setAttempt] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
   const [manualRentalId, setManualRentalId] = useState('')
@@ -1515,12 +1771,30 @@ function InspectionStartPage() {
     const loadAssignedRentals = async () => {
       controller = new AbortController()
       try {
-        const { data } = await getRentals(controller.signal)
+        const [rentalRes, inspRes] = await Promise.allSettled([
+          getRentals(controller.signal),
+          getInspections(controller.signal),
+        ])
         if (!active) return
-        const rows = data ?? []
-        setState(rows.length
-          ? { status: 'content', data: rows, fetchedAt: new Date(), stale: false }
-          : { status: 'empty', data: rows, fetchedAt: new Date() })
+
+        if (inspRes.status === 'fulfilled' && inspRes.value.data) {
+          const map: Record<string, Inspection> = {}
+          for (const item of inspRes.value.data) {
+            if (!map[item.rentalId]) {
+              map[item.rentalId] = item
+            }
+          }
+          setInspectionsMap(map)
+        }
+
+        if (rentalRes.status === 'fulfilled') {
+          const rows = rentalRes.value.data ?? []
+          setState(rows.length
+            ? { status: 'content', data: rows, fetchedAt: new Date(), stale: false }
+            : { status: 'empty', data: rows, fetchedAt: new Date() })
+        } else {
+          throw rentalRes.reason
+        }
       } catch (error: unknown) {
         if (!active || controller?.signal.aborted) return
         const message = rentalLoadError(error)
@@ -1562,8 +1836,8 @@ function InspectionStartPage() {
   })
 
   const totalAssigned = rentals.length
-  const pendingInspection = rentals.filter((r) => r.status === 'approved' || r.status === 'active' || r.status === 'in_progress').length
-  const completedCount = rentals.filter((r) => r.status === 'completed').length
+  const pendingInspection = rentals.filter((r) => !inspectionsMap[r.id] && (r.status === 'approved' || r.status === 'active' || r.status === 'in_progress')).length
+  const completedCount = rentals.filter((r) => inspectionsMap[r.id]?.status === 'pass').length
 
   return (
     <WorkflowPage
@@ -1697,13 +1971,14 @@ function InspectionStartPage() {
                   <th>Unit Alat</th>
                   <th>Periode Operasional</th>
                   <th className="col-center">Status Kontrak</th>
+                  <th className="col-center">Audit Terkini</th>
                   <th className="col-center">Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredRentals.length === 0 ? (
                   <tr>
-                    <td colSpan={5} style={{ textAlign: 'center', padding: '36px', color: 'var(--text-muted)' }}>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '36px', color: 'var(--text-muted)' }}>
                       Tidak ada penugasan inspeksi yang cocok dengan pencarian.
                     </td>
                   </tr>
@@ -1734,12 +2009,39 @@ function InspectionStartPage() {
                         </span>
                       </td>
                       <td className="col-center">
+                        {inspectionsMap[rental.id] ? (
+                          <span
+                            className={`status-pill status-pill--${inspectionsMap[rental.id].status}`}
+                            title={`No: ${inspectionsMap[rental.id].id} • Catatan: ${inspectionsMap[rental.id].notes}`}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                          >
+                            {inspectionsMap[rental.id].status === 'pass' && <CheckCircle size={13} weight="bold" />}
+                            {inspectionsMap[rental.id].status === 'fail' && <WarningCircle size={13} weight="bold" />}
+                            {inspectionsMap[rental.id].status === 'pending_review' && <ClockCountdown size={13} weight="bold" />}
+                            <span>
+                              {inspectionsMap[rental.id].status === 'pass'
+                                ? 'Lulus'
+                                : inspectionsMap[rental.id].status === 'fail'
+                                ? 'Cacat'
+                                : inspectionsMap[rental.id].status === 'pending_review'
+                                ? 'Review'
+                                : inspectionsMap[rental.id].status}
+                            </span>
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <ClockCountdown size={12} />
+                            <span>Belum audit</span>
+                          </span>
+                        )}
+                      </td>
+                      <td className="col-center">
                         <NavLink
                           className="primary-button table-action-btn"
                           to={`/rentals/${encodeURIComponent(rental.id)}/inspection`}
                         >
                           <Wrench size={13} weight="bold" />
-                          <span>Inspeksi</span>
+                          <span>{inspectionsMap[rental.id] ? 'Audit Ulang' : 'Inspeksi'}</span>
                         </NavLink>
                       </td>
                     </tr>

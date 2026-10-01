@@ -153,10 +153,31 @@ async function findDuplicateInspection(rentalId, inspectedAt) {
   }
 }
 
+/**
+ * Retrieve all inspection records ordered by inspection date descending.
+ * @returns {Promise<Array<Object>>} Array of inspection database rows
+ */
+async function getAllInspections() {
+  try {
+    const sql = `
+      SELECT id, rental_id, equipment_id, operator_id, status,
+             inspected_at, notes, defect_summary, created_at, updated_at
+      FROM inspections
+      ORDER BY inspected_at DESC
+    `;
+    const result = await db.query(sql);
+    return result.rows;
+  } catch (err) {
+    console.error(`[STORE INSPECTIONS] Failed to retrieve all inspections: ${err.message}`);
+    throw err;
+  }
+}
+
 module.exports = {
   generateOpaqueId,
   insertInspection,
   getInspectionById,
   getInspectionsByRentalId,
   findDuplicateInspection,
+  getAllInspections,
 };

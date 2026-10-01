@@ -200,6 +200,77 @@ router.get(
 );
 
 // ---------------------------------------------------------------------------
+// GET /rentals/:id/inspections
+// openapi.yaml: operationId listRentalInspections
+// Responses: 200 (array of Inspection), 404
+// ---------------------------------------------------------------------------
+router.get(
+  '/rentals/:id/inspections',
+  requireScope('rentals:read'),
+  schemas.validateRentalIdParam,
+  async (req, res) => {
+    try {
+      const rental = await rentalStore.getRentalById(req.params.id);
+      if (!rental) {
+        return problem.notFound(
+          res,
+          `Rental ${req.params.id} does not exist.`,
+          req.originalUrl,
+        );
+      }
+
+      if (!ownership.mayReadRental(req.principal, rental)) {
+        return problem.notFound(
+          res,
+          `Rental ${req.params.id} does not exist.`,
+          req.originalUrl,
+        );
+      }
+
+      const rows = await inspectionStore.getInspectionsByRentalId(req.params.id);
+      const body = rows.map(representations.rowToInspection);
+
+      const etag = conditional.etagOf(body);
+      res.set('ETag', etag);
+      res.set('Cache-Control', 'private, no-cache');
+
+      if (conditional.check304(req, res, etag)) return;
+
+      return res.status(200).json(body);
+    } catch (err) {
+      console.error(`[ROUTE RENTALS] GET /rentals/${req.params.id}/inspections error:`, err.message);
+      return problem.internalError(res, req.originalUrl);
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// GET /inspections
+// Returns all recent inspections across active tenant context
+// ---------------------------------------------------------------------------
+router.get(
+  '/inspections',
+  requireScope('rentals:read'),
+  async (req, res) => {
+    try {
+      const rows = await inspectionStore.getAllInspections();
+      const body = rows.map(representations.rowToInspection);
+
+      const etag = conditional.etagOf(body);
+      res.set('ETag', etag);
+      res.set('Cache-Control', 'private, no-cache');
+
+      if (conditional.check304(req, res, etag)) return;
+
+      return res.status(200).json(body);
+    } catch (err) {
+      console.error('[ROUTE RENTALS] GET /inspections error:', err.message);
+      return problem.internalError(res, req.originalUrl);
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
 // POST /rentals/:id/inspections
 // openapi.yaml: operationId createInspection
 // Responses: 201 (Inspection), 400, 404, 409, 422

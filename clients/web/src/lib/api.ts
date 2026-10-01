@@ -195,6 +195,14 @@ export async function createInspection(id: string, input: CreateInspectionInput,
   })
 }
 
+export async function getRentalInspections(id: string, signal?: AbortSignal) {
+  return apiRequest<Inspection[]>(`/rentals/${encodeURIComponent(id)}/inspections`, { signal })
+}
+
+export async function getInspections(signal?: AbortSignal) {
+  return apiRequest<Inspection[]>('/inspections', { signal })
+}
+
 export function fieldErrorsFromProblem(problem: ApiProblem) {
   const details = problem['invalid-params'] ?? problem.errors ?? []
   return Object.fromEntries(details.flatMap(({ field, reason }) => {
