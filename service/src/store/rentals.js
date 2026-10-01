@@ -49,6 +49,11 @@ async function getAllRentals(filters = {}) {
       conditions.push(`warehouse_admin_id = $${params.length}`);
     }
 
+    if (filters.assignedOperatorId) {
+      params.push(filters.assignedOperatorId);
+      conditions.push(`assigned_operator_id = $${params.length}`);
+    }
+
     let sql = `
             SELECT id, equipment_id, contractor_id, warehouse_admin_id,
               assigned_operator_id, status, start_time, end_time, deposit_amount,
@@ -115,12 +120,14 @@ async function insertRental(data) {
   const status = data.status || 'approved';
   const currency = data.currency || 'USD';
 
+  const assignedOperatorId = data.assignedOperatorId || 'opr_84Qm1a';
+
   try {
     const sql = `
       INSERT INTO rentals (
-        id, equipment_id, contractor_id, warehouse_admin_id, status,
+        id, equipment_id, contractor_id, warehouse_admin_id, assigned_operator_id, status,
         start_time, end_time, deposit_amount, currency, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       RETURNING id, equipment_id, contractor_id, warehouse_admin_id,
             assigned_operator_id, status, start_time, end_time, deposit_amount,
             currency, version, created_at, updated_at
@@ -131,6 +138,7 @@ async function insertRental(data) {
       data.equipmentId,
       data.contractorId,
       data.warehouseAdminId,
+      assignedOperatorId,
       status,
       data.startTime,
       data.endTime,

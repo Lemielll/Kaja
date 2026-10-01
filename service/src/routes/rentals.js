@@ -46,6 +46,8 @@ router.get(
       // Constrain query to principal's ownership context (Session 4: Step 8d)
       if (req.principal?.actorId?.startsWith('adm_')) {
         filters.warehouseAdminId = req.principal.actorId;
+      } else if (req.principal?.actorId?.startsWith('opr_')) {
+        filters.assignedOperatorId = req.principal.actorId;
       } else if (req.principal?.actorId) {
         filters.contractorId = req.principal.actorId;
       }

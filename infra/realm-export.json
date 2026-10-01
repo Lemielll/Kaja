@@ -2,6 +2,7 @@
   "id": "2940a815-4604-4642-a424-abb2bfd72d8f",
   "realm": "kaja",
   "displayName": "Kaja - Heavy Equipment Rental",
+  "loginTheme": "kaja",
   "notBefore": 0,
   "defaultSignatureAlgorithm": "RS256",
   "revokeRefreshToken": true,
@@ -453,7 +454,10 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["contractor"]
+      "realmRoles": ["contractor"],
+      "attributes": {
+        "actor_id": ["ctr_72Xp9C"]
+      }
     },
     {
       "id": "a1b2c3d4-0002-4000-8000-000000000002",
@@ -470,7 +474,10 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["contractor"]
+      "realmRoles": ["contractor"],
+      "attributes": {
+        "actor_id": ["ctr_contractorB"]
+      }
     },
     {
       "id": "a1b2c3d4-0003-4000-8000-000000000003",
@@ -487,7 +494,10 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["warehouse-admin"]
+      "realmRoles": ["warehouse-admin"],
+      "attributes": {
+        "actor_id": ["adm_19Lq2f"]
+      }
     },
     {
       "id": "a1b2c3d4-0004-4000-8000-000000000004",
@@ -504,7 +514,10 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["warehouse-admin"]
+      "realmRoles": ["warehouse-admin"],
+      "attributes": {
+        "actor_id": ["adm_warehouseB"]
+      }
     },
     {
       "id": "a1b2c3d4-0005-4000-8000-000000000005",
@@ -521,7 +534,10 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["field-operator"]
+      "realmRoles": ["field-operator"],
+      "attributes": {
+        "actor_id": ["opr_84Qm1a"]
+      }
     },
     {
       "id": "a1b2c3d4-0006-4000-8000-000000000006",
@@ -538,7 +554,10 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["field-operator"]
+      "realmRoles": ["field-operator"],
+      "attributes": {
+        "actor_id": ["opr_operatorB"]
+      }
     }
   ],
   "defaultRole": {
@@ -998,6 +1017,24 @@
         "inspections:write",
         "microprofile-jwt",
         "rentals:read"
+      ],
+      "protocolMappers": [
+        {
+          "name": "actor_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "actor_id",
+            "claim.name": "actor_id",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "multivalued": "false",
+            "aggregate.attrs": "false"
+          }
+        }
       ]
     },
     {
@@ -1049,8 +1086,26 @@
         "inspections:write",
         "microprofile-jwt",
         "rentals:read"
+      ],
+      "protocolMappers": [
+        {
+          "name": "actor_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "actor_id",
+            "claim.name": "actor_id",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "multivalued": "false",
+            "aggregate.attrs": "false"
+          }
+        }
       ]
-    }
+    },
   ],
   "clientScopes": [
     {

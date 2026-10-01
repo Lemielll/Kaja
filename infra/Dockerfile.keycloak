@@ -4,6 +4,7 @@ FROM quay.io/keycloak/keycloak:26.0
 # Reason: production deploys mount a persistent disk at /opt/keycloak/data,
 # which would shadow /opt/keycloak/data/import and silently skip realm import.
 COPY realm-export.json /opt/keycloak/import/realm-export.json
+COPY themes/ /opt/keycloak/themes/
 
 # Augment the image at build time instead of on every container start. Doing this
 # in `start` costs an extra CPU + memory spike on each cold start, which matters on

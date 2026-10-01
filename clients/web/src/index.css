@@ -1,20 +1,78 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
+@import url('https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700,900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
 :root {
-  font-family: 'Manrope', 'Segoe UI', sans-serif;
-  color: #202923;
-  background: #f4f6f1;
+  font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #1E293B;
+  background-color: #F4F5F7;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  --ink: #1c2420;
-  --paper: #f4f6f1;
-  --line: #dfe4dc;
-  --lime: #c3e761;
-  --lime-dark: #4c9a68;
-  --display: 'Manrope', 'Segoe UI', sans-serif;
+
+  /* Industrial Color Palette (Light Mode) */
+  --bg-main: #F4F5F7;           /* Light Concrete */
+  --bg-card: #FFFFFF;           /* Pure White */
+  --bg-sidebar: #FFFFFF;        /* Pure White */
+  --bg-subtle: #F8FAFC;         /* Soft Slate */
+  --bg-hover: #F1F5F9;          /* Slate 100 */
+
+  --border-main: #E2E8F0;       /* Galvanized Steel */
+  --border-subtle: #F1F5F9;
+  --border-focus: #C2410C;
+
+  --text-primary: #1E293B;      /* Dark Charcoal */
+  --text-secondary: #64748B;    /* Cool Gray */
+  --text-muted: #94A3B8;        /* Light Gray */
+
+  --accent-primary: #C2410C;    /* Industrial Rust */
+  --accent-primary-hover: #9A3412;
+  --accent-primary-active: #7C2D12;
+  --accent-primary-subtle: #FFEDD5; /* Orange 100 */
+  --accent-primary-tint: #FFF7ED;   /* Orange 50 */
+
+  --accent-secondary: #0EA5E9;  /* Steel Blue */
+  --accent-secondary-hover: #0284C7;
+  --accent-secondary-subtle: #E0F2FE;
+  --accent-secondary-tint: #F0F9FF;
+
+  /* Semantic Status Tokens */
+  --status-success: #10B981;
+  --status-success-bg: #ECFDF5;
+  --status-success-border: #A7F3D0;
+  --status-success-text: #065F46;
+
+  --status-info: #0EA5E9;
+  --status-info-bg: #F0F9FF;
+  --status-info-border: #BAE6FD;
+  --status-info-text: #0369A1;
+
+  --status-warning: #F59E0B;
+  --status-warning-bg: #FFFBEB;
+  --status-warning-border: #FDE68A;
+  --status-warning-text: #92400E;
+
+  --status-danger: #EF4444;
+  --status-danger-bg: #FEF2F2;
+  --status-danger-border: #FECACA;
+  --status-danger-text: #991B1B;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.02);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+
+  /* Typography */
+  --display: 'Satoshi', sans-serif;
   --mono: 'IBM Plex Mono', Consolas, monospace;
+
+  /* Layout */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 9999px;
+  --transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 * {
@@ -25,6 +83,9 @@ body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-family: var(--display);
 }
 
 button,
@@ -39,6 +100,6 @@ button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 2px solid #518867;
-  outline-offset: 3px;
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
 }

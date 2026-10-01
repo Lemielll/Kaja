@@ -37,6 +37,11 @@ function mayReadRental(principal, rental) {
     return true;
   }
 
+  // 3. Field Operator check: principal is the assigned operator for this rental
+  if (rental.assigned_operator_id === principal.actorId) {
+    return true;
+  }
+
   return false;
 }
 

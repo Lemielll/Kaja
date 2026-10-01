@@ -76,6 +76,19 @@ export type CreateInspectionInput = {
   defectSummary?: string
 }
 
+export type Inspection = {
+  id: string
+  rentalId: string
+  equipmentId: string
+  operatorId: string
+  status: 'pending_review' | 'in_progress' | 'pass' | 'fail'
+  inspectedAt: string
+  notes: string
+  defectSummary?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
 export class ApiClientError extends Error {
   readonly status: number
   readonly problem: ApiProblem
@@ -157,7 +170,7 @@ export async function createRental(input: CreateRentalInput, idempotencyKey: str
 }
 
 export async function createInspection(id: string, input: CreateInspectionInput, idempotencyKey: string, ifMatch: string) {
-  return apiRequest(`/rentals/${encodeURIComponent(id)}/inspections`, {
+  return apiRequest<Inspection>(`/rentals/${encodeURIComponent(id)}/inspections`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
