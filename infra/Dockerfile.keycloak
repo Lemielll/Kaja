@@ -28,6 +28,7 @@ ENV KC_HTTP_ENABLED=true \
 
 # Keycloak 26 removed `--import-realm` from `start`. The realm is loaded by a
 COPY entrypoint.sh /opt/keycloak/entrypoint.sh
+RUN chmod 0755 /opt/keycloak/entrypoint.sh
 
 ENTRYPOINT ["/opt/keycloak/entrypoint.sh"]
 CMD ["start", "--optimized"]
