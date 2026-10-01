@@ -35,5 +35,5 @@
 [environments.production.services.kaja-web]
   builder = "NIXPACKS"
   buildCommand = "npm ci && npm run build"
-  startCommand = "npx serve dist -l $PORT"
+  startCommand = "npx serve -s dist -l $PORT"
   rootDirectory = "clients/web"
