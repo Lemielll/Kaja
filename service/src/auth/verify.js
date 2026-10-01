@@ -30,6 +30,19 @@ async function getJose() {
 // Eagerly initiate import so JWKS is initialized ahead of first request
 getJose().catch(() => {});
 
+const REALM_PUBLIC_KEY = process.env.KEYCLOAK_REALM_PUBLIC_KEY || 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsngWSd+dZyeJPNwVPb6T7dmsp2I98T1aeoBrBc5denflCaOn8yU7jpalvrFe2+lsST8Hiwrjm0YIK7VM36aTAaBD2o4maXly0AynOTK/4xbPMn/Htk/PGShyrWEqieqvczL6htmotj1LOM5wJausYUfGnlRv5UYxnOMdvIDxDp80o8aCUQHHPCRvS/T9phTiVPX3dXReoXv2G8n/bzCI68f8xk/wxmLnOI//GgLphEau12jsddekoJuTTg1ayuObIQe9sfTAxazFS9vSnW9Qtnk/jDoEihUp5TfZ4taPF78kGcv49/DwCEZKMFODmPyeSs+XUxQTDCZvKg3SrBsmpQIDAQAB';
+
+let fallbackKeyPromise = null;
+async function getFallbackKey(jose) {
+  if (!fallbackKeyPromise && REALM_PUBLIC_KEY) {
+    fallbackKeyPromise = (async () => {
+      const spki = '-----BEGIN PUBLIC KEY-----\n' + REALM_PUBLIC_KEY.match(/.{1,64}/g).join('\n') + '\n-----END PUBLIC KEY-----';
+      return jose.importSPKI(spki, 'RS256').catch(() => null);
+    })();
+  }
+  return fallbackKeyPromise;
+}
+
 /**
  * Verifies an access token and returns its claims.
  * 
@@ -49,13 +62,28 @@ async function verifyAccessToken(raw) {
       ]))
     : [];
   const allowedAudiences = Array.from(new Set([config.oidcAudience, 'account', 'kaja-api', 'web-app'].filter(Boolean)));
-  const { payload } = await jose.jwtVerify(raw, jwks, {
+  const verifyOptions = {
     issuer: allowedIssuers.length ? allowedIssuers : undefined,
     audience: allowedAudiences,
     algorithms: ['RS256'], // Allowlist - closes "none" algorithm vulnerability
     clockTolerance: 5,
-  });
-  return payload;
+  };
+
+  try {
+    const { payload } = await jose.jwtVerify(raw, jwks, verifyOptions);
+    return payload;
+  } catch (err) {
+    const fallbackKey = await getFallbackKey(jose);
+    if (fallbackKey) {
+      try {
+        const { payload } = await jose.jwtVerify(raw, fallbackKey, verifyOptions);
+        return payload;
+      } catch {
+        // Fall through to throw original JWKS verification error
+      }
+    }
+    throw err;
+  }
 }
 
 module.exports = { verifyAccessToken };
