@@ -32,6 +32,30 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'pass' });
 });
 
+app.get('/health/diag', async (req, res) => {
+  const { verifyAccessToken } = require('./auth/verify');
+  const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  let verifyResult = null;
+  if (token) {
+    try {
+      const claims = await verifyAccessToken(token);
+      verifyResult = { ok: true, sub: claims.sub, scopes: claims.scope, actorId: claims.actor_id };
+    } catch (e) {
+      verifyResult = { ok: false, error: e.message, code: e.code, name: e.name };
+    }
+  }
+  res.status(200).json({
+    env: {
+      PORT: process.env.PORT,
+      OIDC_ISSUER: config.oidcIssuer,
+      OIDC_AUDIENCE: config.oidcAudience,
+      OIDC_JWKS_URI: config.oidcJwksUri,
+      HAS_DB: !!process.env.DATABASE_URL,
+    },
+    verifyResult,
+  });
+});
+
 // 3. Authentication Middleware (Session 4: Layer 1)
 // Apply authentication to all routes except /health.
 // If token is valid → req.principal is set

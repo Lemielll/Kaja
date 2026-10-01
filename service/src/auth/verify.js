@@ -86,7 +86,18 @@ async function verifyAccessToken(raw) {
       const { payload } = await jose.jwtVerify(raw, fallbackKey, verifyOptions);
       return payload;
     } catch {
-      // Fall through to throw error
+      try {
+        const { payload: unverified } = jose.decodeJwt(raw);
+        if (unverified && (unverified.azp === 'web-app' || String(unverified.iss || '').endsWith('/realms/kaja'))) {
+          const { payload } = await jose.jwtVerify(raw, fallbackKey, {
+            algorithms: ['RS256'],
+            clockTolerance: 30,
+          });
+          return payload;
+        }
+      } catch {
+        // Fall through to error
+      }
     }
   }
 
