@@ -16,16 +16,42 @@ import {
   ShieldCheck,
   SignIn,
   SignOut,
+  Trash,
   Truck,
   User as UserIcon,
   Warehouse,
   WarningCircle,
   WifiSlash,
   Wrench,
+  XCircle,
+  Check,
 } from '@phosphor-icons/react'
 import { AuthProvider } from './auth/AuthProvider'
 import { useAuth } from './auth/context'
-import { ApiClientError, apiRequest, createIdempotencyKey, createInspection, createRental, fieldErrorsFromProblem, getEquipments, getRental, getRentals, getRentalInspections, getInspections, invalidateApiResponse, type CreateInspectionInput, type CreateRentalInput, type Equipment, type Inspection, type Rental } from './lib/api'
+import {
+  ApiClientError,
+  apiRequest,
+  createEquipment,
+  createIdempotencyKey,
+  createInspection,
+  createRental,
+  deleteEquipment,
+  fieldErrorsFromProblem,
+  getEquipments,
+  getRental,
+  getRentals,
+  getRentalInspections,
+  getInspections,
+  invalidateApiResponse,
+  updateEquipmentStatus,
+  updateRentalStatus,
+  type CreateEquipmentInput,
+  type CreateInspectionInput,
+  type CreateRentalInput,
+  type Equipment,
+  type Inspection,
+  type Rental,
+} from './lib/api'
 import './App.css'
 
 function WorkflowPage({ title, subtitle, kicker = 'Sistem Operasional Rental', children, actions }: {
@@ -133,7 +159,7 @@ function RentalListPage() {
   const [inspectionsMap, setInspectionsMap] = useState<Record<string, Inspection>>({})
   const [attempt, setAttempt] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'in_progress' | 'completed' | 'cancelled'>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'approved' | 'in_progress' | 'completed' | 'cancelled'>('all')
   const { user } = useAuth()
   const roles = user ? roleNames(user) : []
   const canCreateRentals = roles.includes('contractor')
@@ -217,6 +243,7 @@ function RentalListPage() {
 
   // Metric counts
   const totalCount = rentals.length
+  const draftCount = rentals.filter((r) => r.status === 'draft').length
   const approvedCount = rentals.filter((r) => r.status === 'approved' || r.status === 'active').length
   const inspectedPassCount = rentals.filter((r) => inspectionsMap[r.id]?.status === 'pass').length
   const completedCount = rentals.filter((r) => r.status === 'completed').length
@@ -346,6 +373,14 @@ function RentalListPage() {
               </button>
               <button
                 type="button"
+                className={`filter-chip ${statusFilter === 'draft' ? 'filter-chip--active' : ''}`}
+                onClick={() => setStatusFilter('draft')}
+                style={draftCount > 0 ? { color: '#d97706', fontWeight: 600 } : undefined}
+              >
+                Menunggu Review {draftCount > 0 ? `(${draftCount})` : ''}
+              </button>
+              <button
+                type="button"
                 className={`filter-chip ${statusFilter === 'approved' ? 'filter-chip--active' : ''}`}
                 onClick={() => setStatusFilter('approved')}
               >
@@ -468,9 +503,49 @@ function RentalListPage() {
                         )}
                       </td>
                       <td className="col-center">
-                        <NavLink className="table-action-link" to={`/rentals/${encodeURIComponent(rental.id)}`}>
-                          <span>Detail</span>
-                        </NavLink>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                          {isWarehouseAdmin && rental.status === 'draft' && (
+                            <>
+                              <button
+                                type="button"
+                                className="success-button"
+                                style={{ padding: '3px 8px', minHeight: '26px', fontSize: '11.5px' }}
+                                title="Setujui Sewa"
+                                onClick={async (e) => {
+                                  e.preventDefault()
+                                  try {
+                                    await updateRentalStatus(rental.id, 'approved')
+                                    refresh()
+                                  } catch (err) {
+                                    alert('Gagal menyetujui sewa')
+                                  }
+                                }}
+                              >
+                                <Check size={13} weight="bold" /> Setujui
+                              </button>
+                              <button
+                                type="button"
+                                className="danger-button"
+                                style={{ padding: '3px 8px', minHeight: '26px', fontSize: '11.5px' }}
+                                title="Tolak Sewa"
+                                onClick={async (e) => {
+                                  e.preventDefault()
+                                  try {
+                                    await updateRentalStatus(rental.id, 'rejected')
+                                    refresh()
+                                  } catch (err) {
+                                    alert('Gagal menolak sewa')
+                                  }
+                                }}
+                              >
+                                <XCircle size={13} weight="bold" /> Tolak
+                              </button>
+                            </>
+                          )}
+                          <NavLink className="table-action-link" to={`/rentals/${encodeURIComponent(rental.id)}`}>
+                            <span>Detail</span>
+                          </NavLink>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -491,6 +566,18 @@ function EquipmentCataloguePage() {
 
   const [state, setState] = useState<ViewState<Equipment[]>>({ status: 'loading' })
   const [attempt, setAttempt] = useState(0)
+  const [actionError, setActionError] = useState('')
+
+  // Add Equipment Modal State
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [newEquipment, setNewEquipment] = useState<CreateEquipmentInput>({
+    type: 'excavator',
+    location: '',
+    hourlyRate: 150000,
+    status: 'available',
+  })
+  const [adding, setAdding] = useState(false)
+  const [addError, setAddError] = useState('')
 
   useEffect(() => {
     const controller = new AbortController()
@@ -521,16 +608,91 @@ function EquipmentCataloguePage() {
     setAttempt((current) => current + 1)
   }
 
+  const handleCreateEquipment = async (e: FormEvent) => {
+    e.preventDefault()
+    setAddError('')
+    if (!newEquipment.location.trim()) {
+      setAddError('Lokasi gudang wajib diisi.')
+      return
+    }
+    if (!newEquipment.hourlyRate || Number(newEquipment.hourlyRate) <= 0) {
+      setAddError('Tarif sewa per jam harus berupa angka positif.')
+      return
+    }
+
+    setAdding(true)
+    try {
+      await createEquipment({
+        type: newEquipment.type,
+        location: newEquipment.location.trim(),
+        hourlyRate: Math.round(Number(newEquipment.hourlyRate)),
+        status: newEquipment.status || 'available',
+        currency: 'USD',
+      })
+      setShowAddModal(false)
+      setNewEquipment({ type: 'excavator', location: '', hourlyRate: 150000, status: 'available' })
+      refresh()
+    } catch (err: unknown) {
+      if (err instanceof ApiClientError) {
+        setAddError(err.problem.detail || err.message)
+      } else {
+        setAddError('Gagal menambahkan unit armada. Silakan coba lagi.')
+      }
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  const handleUpdateStatus = async (id: string, newStatus: string) => {
+    setActionError('')
+    try {
+      await updateEquipmentStatus(id, newStatus)
+      refresh()
+    } catch (err: unknown) {
+      if (err instanceof ApiClientError) {
+        setActionError(err.problem.detail || err.message)
+      } else {
+        setActionError('Gagal memperbarui status unit.')
+      }
+    }
+  }
+
+  const handleDeleteEquipment = async (id: string) => {
+    if (!window.confirm(`Yakin ingin menghapus unit armada ${id}? Unit yang pernah disewa akan dialihkan ke status 'out_of_service'.`)) {
+      return
+    }
+    setActionError('')
+    try {
+      await deleteEquipment(id)
+      refresh()
+    } catch (err: unknown) {
+      if (err instanceof ApiClientError) {
+        setActionError(err.problem.detail || err.message)
+      } else {
+        setActionError('Gagal menghapus unit armada.')
+      }
+    }
+  }
+
   const headerActions = isWarehouseAdmin ? (
-    <NavLink to="/rentals" className="secondary-button" style={{ textDecoration: 'none' }}>
-      <FileText size={16} weight="duotone" /> Lihat Kontrak Sewa
-    </NavLink>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <button
+        type="button"
+        className="primary-button"
+        onClick={() => setShowAddModal(true)}
+      >
+        <PlusCircle size={16} weight="bold" /> Tambah Unit Armada
+      </button>
+      <NavLink to="/rentals" className="secondary-button" style={{ textDecoration: 'none' }}>
+        <FileText size={16} weight="duotone" /> Lihat Kontrak Sewa
+      </NavLink>
+    </div>
   ) : undefined
 
   return (
     <WorkflowPage
       title={isWarehouseAdmin ? "Katalog & Inventaris Gudang" : "Katalog Alat Berat"}
-      subtitle={isWarehouseAdmin ? "Pantau ketersediaan armada, status pemeliharaan, dan lokasi unit alat berat di gudang." : "Pilih unit armada alat berat yang tersedia untuk pengajuan kontrak sewa baru."}
+      subtitle={isWarehouseAdmin ? "Pantau ketersediaan armada, ubah status unit, tambah atau hapus unit armada di gudang." : "Pilih unit armada alat berat yang tersedia untuk pengajuan kontrak sewa baru."}
       kicker={isWarehouseAdmin ? "Inventaris Gudang" : "Katalog Alat"}
       actions={headerActions}
     >
@@ -562,8 +724,18 @@ function EquipmentCataloguePage() {
             <FolderOpen size={32} weight="duotone" />
           </div>
           <strong>Belum ada armada tersedia</strong>
-          <p>Seluruh unit sedang dalam masa kontrak sewa atau perawatan. Silakan periksa kembali nanti.</p>
-          <span className="sync-time-badge">Sinkron terakhir {state.fetchedAt.toLocaleTimeString('id-ID')}</span>
+          <p>Belum ada unit armada terdaftar dalam inventaris gudang.</p>
+          {isWarehouseAdmin && (
+            <div style={{ marginTop: '16px' }}>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => setShowAddModal(true)}
+              >
+                <PlusCircle size={16} weight="bold" /> Tambah Unit Armada Pertama
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -581,6 +753,13 @@ function EquipmentCataloguePage() {
               </button>
             </div>
           </div>
+
+          {actionError && (
+            <div className="inline-error" style={{ marginBottom: '14px' }} role="alert">
+              <WarningCircle size={16} />
+              <span>{actionError}</span>
+            </div>
+          )}
 
           {state.error && (
             <div className="inline-error" role="alert">
@@ -624,25 +803,38 @@ function EquipmentCataloguePage() {
                       </span>
                     </td>
                     <td className="col-center">
-                      <span className={`status-pill status-pill--${equipment.status}`}>
-                        <span>{equipment.status}</span>
-                      </span>
+                      {isWarehouseAdmin ? (
+                        <select
+                          className="status-select"
+                          value={equipment.status}
+                          onChange={(e) => handleUpdateStatus(equipment.id, e.target.value)}
+                          title="Ubah status unit armada"
+                        >
+                          <option value="available">available (Tersedia)</option>
+                          <option value="reserved">reserved (Dipesan)</option>
+                          <option value="in_progress">in_progress (Beroperasi)</option>
+                          <option value="maintenance">maintenance (Perawatan)</option>
+                          <option value="out_of_service">out_of_service (Nonaktif)</option>
+                        </select>
+                      ) : (
+                        <span className={`status-pill status-pill--${equipment.status}`}>
+                          <span>{equipment.status}</span>
+                        </span>
+                      )}
                     </td>
                     <td className="col-center">
                       {isWarehouseAdmin ? (
-                        equipment.status === 'available' ? (
-                          <span className="table-action-available">
-                            <CheckCircle size={13} weight="bold" /> Siap Dikeluarkan
-                          </span>
-                        ) : equipment.status === 'maintenance' ? (
-                          <span className="table-action-maintenance">
-                            <ClockCountdown size={13} weight="bold" /> Dalam Perawatan
-                          </span>
-                        ) : (
-                          <span className="table-action-reserved">
-                            <FileText size={13} weight="bold" /> Sedang Tersewa
-                          </span>
-                        )
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                          <button
+                            type="button"
+                            className="danger-button table-action-btn"
+                            onClick={() => handleDeleteEquipment(equipment.id)}
+                            title="Hapus atau nonaktifkan unit armada ini"
+                          >
+                            <Trash size={14} weight="bold" />
+                            <span>Hapus</span>
+                          </button>
+                        </div>
                       ) : equipment.status === 'available' ? (
                         <NavLink
                           className="primary-button table-action-btn"
@@ -676,6 +868,140 @@ function EquipmentCataloguePage() {
             </table>
           </div>
         </>
+      )}
+
+      {/* Modal Tambah Unit Armada (Warehouse Admin) */}
+      {showAddModal && (
+        <div className="modal-backdrop" onClick={() => !adding && setShowAddModal(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">
+                <Truck size={22} weight="duotone" style={{ color: 'var(--lime)' }} />
+                <span>Tambah Unit Armada Baru</span>
+              </h3>
+              <button
+                type="button"
+                className="secondary-button"
+                style={{ minHeight: '30px', padding: '0 8px', borderRadius: '50%' }}
+                onClick={() => setShowAddModal(false)}
+                disabled={adding}
+              >
+                ✕
+              </button>
+            </div>
+
+            {addError && (
+              <div className="inline-error" style={{ marginBottom: '16px' }} role="alert">
+                <WarningCircle size={16} />
+                <span>{addError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleCreateEquipment} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                  Kategori Mesin / Alat Berat
+                </label>
+                <select
+                  className="status-select"
+                  style={{ width: '100%', padding: '9px 12px', fontSize: '13.5px' }}
+                  value={newEquipment.type}
+                  onChange={(e) => setNewEquipment({ ...newEquipment, type: e.target.value })}
+                  disabled={adding}
+                >
+                  <option value="excavator">Excavator (Alat Penggali)</option>
+                  <option value="wheel_loader">Wheel Loader (Pemuat Roda)</option>
+                  <option value="bulldozer">Bulldozer (Perata Tanah)</option>
+                  <option value="crane">Crane (Derek Angkat)</option>
+                  <option value="compactor">Compactor (Pemadat Aspal)</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                  Lokasi Gudang Penyimpanan
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Contoh: Gudang Utama - Jakarta Utara"
+                  value={newEquipment.location}
+                  onChange={(e) => setNewEquipment({ ...newEquipment, location: e.target.value })}
+                  disabled={adding}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border-main)',
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-primary)',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                  Tarif Sewa / Jam (USD)
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  step="1"
+                  placeholder="Contoh: 150000"
+                  value={newEquipment.hourlyRate}
+                  onChange={(e) => setNewEquipment({ ...newEquipment, hourlyRate: Number(e.target.value) })}
+                  disabled={adding}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border-main)',
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-primary)',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                  Status Kesiapan Awal
+                </label>
+                <select
+                  className="status-select"
+                  style={{ width: '100%', padding: '9px 12px', fontSize: '13.5px' }}
+                  value={newEquipment.status}
+                  onChange={(e) => setNewEquipment({ ...newEquipment, status: e.target.value })}
+                  disabled={adding}
+                >
+                  <option value="available">available (Tersedia - Siap Disewa)</option>
+                  <option value="maintenance">maintenance (Dalam Perawatan)</option>
+                  <option value="out_of_service">out_of_service (Tidak Aktif)</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => setShowAddModal(false)}
+                  disabled={adding}
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="primary-button"
+                  disabled={adding}
+                >
+                  {adding ? 'Menyimpan...' : 'Simpan Unit Armada'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </WorkflowPage>
   )
@@ -753,7 +1079,7 @@ function RentalRequestPage() {
   return (
     <WorkflowPage
       title="Pengajuan Sewa Armada"
-      subtitle="Lengkapi periode operasional dan jaminan deposit untuk mengunci reservasi alat berat."
+      subtitle="Lengkapi periode operasional dan jaminan deposit. Pengajuan sewa akan ditinjau dan disetujui oleh Admin Gudang sebelum unit alat disiapkan."
       kicker="Pengajuan Sewa"
     >
       <div className="form-panel">
@@ -844,13 +1170,31 @@ function RentalRequestPage() {
           {fieldErrors.equipmentId && <span className="field-error" role="alert">{fieldErrors.equipmentId}</span>}
           {formError && <p className="inline-error" role="alert">{formError}</p>}
 
+          <div style={{
+            marginBottom: '16px',
+            padding: '12px 16px',
+            borderRadius: '10px',
+            background: 'rgba(245, 158, 11, 0.08)',
+            border: '1px solid rgba(245, 158, 11, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            fontSize: '13px',
+            color: '#b45309'
+          }}>
+            <ClockCountdown size={20} weight="duotone" style={{ flexShrink: 0, color: '#d97706' }} />
+            <span>
+              <strong>Perhatian:</strong> Pengajuan ini akan berstatus <em>Menunggu Review</em> dan wajib ditinjau serta disetujui terlebih dahulu oleh Admin Gudang.
+            </span>
+          </div>
+
           <button
             className="primary-button"
             type="submit"
-            style={{ width: '100%', minHeight: '44px', marginTop: '8px' }}
+            style={{ width: '100%', minHeight: '44px', marginTop: '4px' }}
             disabled={submitting || !equipmentId}
           >
-            <span>{submitting ? 'Mengirim Pengajuan...' : 'Kirim Permintaan Rental'}</span>
+            <span>{submitting ? 'Mengirim Pengajuan...' : 'Kirim Pengajuan Sewa (Menunggu Review)'}</span>
           </button>
         </form>
       </div>
@@ -868,6 +1212,27 @@ function RentalDetailPage() {
   const [state, setState] = useState<ViewState<Rental>>({ status: 'loading' })
   const [inspections, setInspections] = useState<Inspection[]>([])
   const [attempt, setAttempt] = useState(0)
+
+  const [updatingStatus, setUpdatingStatus] = useState(false)
+  const [statusActionError, setStatusActionError] = useState('')
+
+  const handleRentalStatusChange = async (newStatus: string) => {
+    setStatusActionError('')
+    setUpdatingStatus(true)
+    try {
+      await updateRentalStatus(id, newStatus)
+      invalidateApiResponse(`/rentals/${encodeURIComponent(id)}`)
+      refresh()
+    } catch (err: unknown) {
+      if (err instanceof ApiClientError) {
+        setStatusActionError(err.problem.detail || err.message)
+      } else {
+        setStatusActionError('Gagal mengubah status rental.')
+      }
+    } finally {
+      setUpdatingStatus(false)
+    }
+  }
 
   useEffect(() => {
     const controller = new AbortController()
@@ -901,6 +1266,7 @@ function RentalDetailPage() {
   }, [attempt, id])
 
   const refresh = () => {
+    invalidateApiResponse(`/rentals/${encodeURIComponent(id)}`)
     invalidateApiResponse(`/rentals/${encodeURIComponent(id)}/inspections`)
     setState((current) => current.status === 'content'
       ? { ...current, stale: true, error: undefined }
@@ -983,6 +1349,107 @@ function RentalDetailPage() {
                 <span>Buka Lembar Inspeksi</span>
                 <ArrowRight size={14} weight="bold" />
               </NavLink>
+            </div>
+          )}
+
+          {/* Warehouse Admin Review & Status Management Card */}
+          {isWarehouseAdmin && (
+            <div style={{
+              marginBottom: '20px',
+              padding: '20px 24px',
+              borderRadius: '16px',
+              background: state.data.status === 'draft' ? 'rgba(245, 158, 11, 0.08)' : 'var(--bg-card)',
+              border: state.data.status === 'draft' ? '1px solid #f59e0b' : '1px solid var(--border-main)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <ShieldCheck size={20} weight="duotone" style={{ color: state.data.status === 'draft' ? '#d97706' : 'var(--lime)' }} />
+                    <h3 style={{ margin: 0, fontSize: '16.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      Kontrol & Peninjauan Kontrak (Admin Gudang)
+                    </h3>
+                  </div>
+                  <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                    {state.data.status === 'draft'
+                      ? 'Pengajuan sewa baru dari kontraktor. Tinjau kelayakan unit alat dan berikan persetujuan.'
+                      : 'Kelola status siklus sewa unit armada secara langsung.'}
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  {state.data.status === 'draft' && (
+                    <>
+                      <button
+                        type="button"
+                        className="success-button"
+                        disabled={updatingStatus}
+                        onClick={() => handleRentalStatusChange('approved')}
+                      >
+                        <Check size={16} weight="bold" />
+                        <span>Setujui Pengajuan Sewa</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="danger-button"
+                        disabled={updatingStatus}
+                        onClick={() => handleRentalStatusChange('rejected')}
+                      >
+                        <XCircle size={16} weight="bold" />
+                        <span>Tolak Pengajuan</span>
+                      </button>
+                    </>
+                  )}
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--text-secondary)' }}>Ubah Status:</span>
+                    <select
+                      className="status-select"
+                      value={state.data.status}
+                      disabled={updatingStatus}
+                      onChange={(e) => handleRentalStatusChange(e.target.value)}
+                    >
+                      <option value="draft">draft (Menunggu Review)</option>
+                      <option value="approved">approved (Disetujui)</option>
+                      <option value="in_progress">in_progress (Berlangsung)</option>
+                      <option value="active">active (Aktif)</option>
+                      <option value="completed">completed (Selesai)</option>
+                      <option value="cancelled">cancelled (Dibatalkan)</option>
+                      <option value="rejected">rejected (Ditolak)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {statusActionError && (
+                <div className="inline-error" style={{ marginTop: '12px' }} role="alert">
+                  <WarningCircle size={16} />
+                  <span>{statusActionError}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Banner Menunggu Review untuk Kontraktor */}
+          {state.data.status === 'draft' && !isWarehouseAdmin && (
+            <div style={{
+              marginBottom: '20px',
+              padding: '16px 20px',
+              borderRadius: '12px',
+              background: 'rgba(245, 158, 11, 0.08)',
+              border: '1px solid #f59e0b',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+            }}>
+              <ClockCountdown size={26} weight="duotone" style={{ color: '#d97706', flexShrink: 0 }} />
+              <div>
+                <strong style={{ display: 'block', fontSize: '14px', color: '#92400e' }}>
+                  Menunggu Persetujuan Admin Gudang
+                </strong>
+                <span style={{ fontSize: '13px', color: '#b45309' }}>
+                  Pengajuan sewa Anda telah berhasil dikirim dan sedang menunggu ditinjau serta disetujui oleh Admin Gudang sebelum unit alat disiapkan.
+                </span>
+              </div>
             </div>
           )}
 

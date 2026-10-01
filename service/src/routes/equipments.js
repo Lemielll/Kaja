@@ -39,4 +39,102 @@ router.get(
   },
 );
 
+// ---------------------------------------------------------------------------
+// POST /equipments
+// Create equipment unit (Warehouse Admin)
+// ---------------------------------------------------------------------------
+router.post(
+  '/equipments',
+  requireScope('equipment:read'),
+  async (req, res) => {
+    try {
+      const { type, hourlyRate, currency = 'USD', location, status = 'available' } = req.body || {};
+      const validTypes = ['excavator', 'wheel_loader', 'bulldozer', 'crane', 'compactor'];
+      const validStatuses = ['available', 'reserved', 'in_progress', 'maintenance', 'out_of_service'];
+
+      if (!type || !validTypes.includes(type)) {
+        return problem.badRequest(res, `Tipe alat '${type}' tidak valid. Pilihan: ${validTypes.join(', ')}`, req.originalUrl);
+      }
+      if (!location || typeof location !== 'string' || !location.trim()) {
+        return problem.badRequest(res, 'Lokasi gudang wajib diisi.', req.originalUrl);
+      }
+      if (typeof hourlyRate !== 'number' || hourlyRate < 0) {
+        return problem.badRequest(res, 'Tarif sewa per jam harus berupa angka non-negatif.', req.originalUrl);
+      }
+      if (!validStatuses.includes(status)) {
+        return problem.badRequest(res, `Status '${status}' tidak valid. Pilihan: ${validStatuses.join(', ')}`, req.originalUrl);
+      }
+
+      const row = await equipmentStore.insertEquipment({
+        type,
+        hourlyRate: Math.round(hourlyRate),
+        currency: currency.toUpperCase(),
+        location: location.trim(),
+        status,
+      });
+
+      const body = representations.rowToEquipment(row);
+      return res.status(201).json(body);
+    } catch (err) {
+      console.error('[ROUTE EQUIPMENTS] POST /equipments error:', err.message);
+      return problem.internalError(res, req.originalUrl);
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// PATCH /equipments/:id/status (and PATCH /equipments/:id)
+// Update equipment status (Warehouse Admin)
+// ---------------------------------------------------------------------------
+async function handleUpdateEquipmentStatus(req, res) {
+  try {
+    const { id } = req.params;
+    const { status } = req.body || {};
+    const validStatuses = ['available', 'reserved', 'in_progress', 'maintenance', 'out_of_service'];
+
+    if (!status || !validStatuses.includes(status)) {
+      return problem.badRequest(res, `Status '${status}' tidak valid. Pilihan: ${validStatuses.join(', ')}`, req.originalUrl);
+    }
+
+    const existing = await equipmentStore.getEquipmentById(id);
+    if (!existing) {
+      return problem.notFound(res, `Unit armada ${id} tidak ditemukan.`, req.originalUrl);
+    }
+
+    const updated = await equipmentStore.updateEquipmentStatus(id, status);
+    const body = representations.rowToEquipment(updated);
+    return res.status(200).json(body);
+  } catch (err) {
+    console.error(`[ROUTE EQUIPMENTS] PATCH status error for ${req.params.id}:`, err.message);
+    return problem.internalError(res, req.originalUrl);
+  }
+}
+
+router.patch('/equipments/:id/status', requireScope('equipment:read'), handleUpdateEquipmentStatus);
+router.patch('/equipments/:id', requireScope('equipment:read'), handleUpdateEquipmentStatus);
+
+// ---------------------------------------------------------------------------
+// DELETE /equipments/:id
+// Delete equipment unit (Warehouse Admin)
+// ---------------------------------------------------------------------------
+router.delete(
+  '/equipments/:id',
+  requireScope('equipment:read'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const existing = await equipmentStore.getEquipmentById(id);
+      if (!existing) {
+        return problem.notFound(res, `Unit armada ${id} tidak ditemukan.`, req.originalUrl);
+      }
+
+      await equipmentStore.deleteEquipment(id);
+      return res.status(204).send();
+    } catch (err) {
+      console.error(`[ROUTE EQUIPMENTS] DELETE error for ${req.params.id}:`, err.message);
+      return problem.internalError(res, req.originalUrl);
+    }
+  },
+);
+
 module.exports = router;

@@ -199,6 +199,44 @@ export async function getRentalInspections(id: string, signal?: AbortSignal) {
   return apiRequest<Inspection[]>(`/rentals/${encodeURIComponent(id)}/inspections`, { signal })
 }
 
+export type CreateEquipmentInput = {
+  type: string
+  hourlyRate: number
+  currency?: string
+  location: string
+  status?: string
+}
+
+export async function createEquipment(input: CreateEquipmentInput) {
+  return apiRequest<Equipment>('/equipments', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+}
+
+export async function updateEquipmentStatus(id: string, status: string) {
+  return apiRequest<Equipment>(`/equipments/${encodeURIComponent(id)}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+  })
+}
+
+export async function deleteEquipment(id: string) {
+  return apiRequest<void>(`/equipments/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  })
+}
+
+export async function updateRentalStatus(id: string, status: string) {
+  return apiRequest<Rental>(`/rentals/${encodeURIComponent(id)}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+  })
+}
+
 export async function getInspections(signal?: AbortSignal) {
   return apiRequest<Inspection[]>('/inspections', { signal })
 }

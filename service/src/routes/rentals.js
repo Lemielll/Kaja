@@ -22,6 +22,7 @@ const representations = require('../representations');
 const rentalStore = require('../store/rentals');
 const idempotencyStore = require('../store/idempotency');
 const inspectionStore = require('../store/inspections');
+const equipmentStore = require('../store/equipments');
 const { requireScope } = require('../auth/require-scope');
 const { requireActorId } = require('../auth/require-actor-id');
 const ownership = require('../auth/ownership');
@@ -127,6 +128,7 @@ router.post(
         endTime: body.endTime,
         depositAmount: body.depositAmount,
         currency: body.currency,
+        status: body.status || 'draft',
       });
 
       const rental = representations.rowToRental(row);
@@ -424,6 +426,65 @@ router.post(
       return problem.internalError(res, req.originalUrl);
     }
   },
+);
+
+// ---------------------------------------------------------------------------
+// PATCH /rentals/:id/status (and PATCH /rentals/:id)
+// Update rental workflow status (Warehouse Admin review/approval & state transition)
+// ---------------------------------------------------------------------------
+async function handleUpdateRentalStatus(req, res) {
+  try {
+    const { id } = req.params;
+    const { status } = req.body || {};
+    const validStatuses = ['draft', 'approved', 'in_progress', 'active', 'completed', 'cancelled', 'rejected'];
+
+    if (!status || !validStatuses.includes(status)) {
+      return problem.badRequest(res, `Status '${status}' tidak valid. Pilihan: ${validStatuses.join(', ')}`, req.originalUrl);
+    }
+
+    const rental = await rentalStore.getRentalById(id);
+    if (!rental) {
+      return problem.notFound(res, `Rental ${id} does not exist.`, req.originalUrl);
+    }
+
+    // Object ownership check (Warehouse Admin or assigned actor)
+    if (!ownership.mayReadRental(req.principal, rental)) {
+      return problem.notFound(res, `Rental ${id} does not exist.`, req.originalUrl);
+    }
+
+    const updated = await rentalStore.updateRentalStatus(id, status);
+
+    // Synchronize associated equipment status
+    if (rental.equipment_id) {
+      if (status === 'in_progress' || status === 'active') {
+        await equipmentStore.updateEquipmentStatus(rental.equipment_id, 'in_progress').catch(() => {});
+      } else if (status === 'completed' || status === 'cancelled' || status === 'rejected') {
+        await equipmentStore.updateEquipmentStatus(rental.equipment_id, 'available').catch(() => {});
+      } else if (status === 'approved') {
+        await equipmentStore.updateEquipmentStatus(rental.equipment_id, 'reserved').catch(() => {});
+      }
+    }
+
+    const body = representations.rowToRental(updated);
+    return res.status(200).json(body);
+  } catch (err) {
+    console.error(`[ROUTE RENTALS] PATCH status error for ${req.params.id}:`, err.message);
+    return problem.internalError(res, req.originalUrl);
+  }
+}
+
+router.patch(
+  '/rentals/:id/status',
+  requireScope('rentals:write'),
+  schemas.validateRentalIdParam,
+  handleUpdateRentalStatus,
+);
+
+router.patch(
+  '/rentals/:id',
+  requireScope('rentals:write'),
+  schemas.validateRentalIdParam,
+  handleUpdateRentalStatus,
 );
 
 module.exports = router;

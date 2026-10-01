@@ -117,7 +117,7 @@ async function getRentalById(id) {
  */
 async function insertRental(data) {
   const rentalId = data.id || generateOpaqueId('rnt');
-  const status = data.status || 'approved';
+  const status = data.status || 'draft';
   const currency = data.currency || 'USD';
 
   const assignedOperatorId = data.assignedOperatorId || 'opr_84Qm1a';
@@ -155,9 +155,34 @@ async function insertRental(data) {
   }
 }
 
+/**
+ * Update the workflow status of a rental contract.
+ * @param {string} id - Rental ID
+ * @param {string} status - New workflow status
+ * @returns {Promise<Object|null>} The updated rental database row
+ */
+async function updateRentalStatus(id, status) {
+  try {
+    const sql = `
+      UPDATE rentals
+      SET status = $1, version = version + 1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+      RETURNING id, equipment_id, contractor_id, warehouse_admin_id,
+                assigned_operator_id, status, start_time, end_time, deposit_amount,
+                currency, version, created_at, updated_at
+    `;
+    const result = await db.query(sql, [status, id]);
+    return result.rows[0] || null;
+  } catch (err) {
+    console.error(`[STORE RENTALS] Failed to update rental status: ${err.message}`);
+    throw err;
+  }
+}
+
 module.exports = {
   getAllRentals,
   getRentalById,
   insertRental,
+  updateRentalStatus,
   generateOpaqueId,
 };
