@@ -30,6 +30,19 @@ async function getJose() {
 // Eagerly initiate import so JWKS is initialized ahead of first request
 getJose().catch(() => {});
 
+const REALM_PUBLIC_KEY = process.env.KEYCLOAK_REALM_PUBLIC_KEY || 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsngWSd+dZyeJPNwVPb6T7dmsp2I98T1aeoBrBc5denflCaOn8yU7jpalvrFe2+lsST8Hiwrjm0YIK7VM36aTAaBD2o4maXly0AynOTK/4xbPMn/Htk/PGShyrWEqieqvczL6htmotj1LOM5wJausYUfGnlRv5UYxnOMdvIDxDp80o8aCUQHHPCRvS/T9phTiVPX3dXReoXv2G8n/bzCI68f8xk/wxmLnOI//GgLphEau12jsddekoJuTTg1ayuObIQe9sfTAxazFS9vSnW9Qtnk/jDoEihUp5TfZ4taPF78kGcv49/DwCEZKMFODmPyeSs+XUxQTDCZvKg3SrBsmpQIDAQAB';
+
+let fallbackKeyPromise = null;
+async function getFallbackKey(jose) {
+  if (!fallbackKeyPromise && REALM_PUBLIC_KEY) {
+    fallbackKeyPromise = (async () => {
+      const spki = '-----BEGIN PUBLIC KEY-----\n' + REALM_PUBLIC_KEY.match(/.{1,64}/g).join('\n') + '\n-----END PUBLIC KEY-----';
+      return jose.importSPKI(spki, 'RS256').catch(() => null);
+    })();
+  }
+  return fallbackKeyPromise;
+}
+
 /**
  * Verifies an access token and returns its claims.
  * 
@@ -40,22 +53,44 @@ getJose().catch(() => {});
 async function verifyAccessToken(raw) {
   const jose = await getJose();
   const cleanIssuer = config.oidcIssuer ? config.oidcIssuer.replace(/\/+$/, '') : '';
-  const allowedIssuers = cleanIssuer
-    ? Array.from(new Set([
-        cleanIssuer,
-        `${cleanIssuer}/`,
-        cleanIssuer.replace(/^https:/, 'http:'),
-        cleanIssuer.replace(/^http:/, 'https:'),
-      ]))
-    : [];
+  const allowedIssuers = Array.from(new Set([
+    cleanIssuer,
+    `${cleanIssuer}/`,
+    cleanIssuer.replace(/^https:/, 'http:'),
+    cleanIssuer.replace(/^http:/, 'https:'),
+    'https://kaja-auth-production-6145.up.railway.app/realms/kaja',
+    'https://kaja-auth-production-6145.up.railway.app/realms/kaja/',
+    'http://localhost:8080/realms/kaja',
+    'http://localhost:8080/realms/kaja/',
+  ].filter(Boolean)));
   const allowedAudiences = Array.from(new Set([config.oidcAudience, 'account', 'kaja-api', 'web-app'].filter(Boolean)));
-  const { payload } = await jose.jwtVerify(raw, jwks, {
+  const verifyOptions = {
     issuer: allowedIssuers.length ? allowedIssuers : undefined,
     audience: allowedAudiences,
     algorithms: ['RS256'], // Allowlist - closes "none" algorithm vulnerability
-    clockTolerance: 5,
-  });
-  return payload;
+    clockTolerance: 10,
+  };
+
+  try {
+    if (jwks) {
+      const { payload } = await jose.jwtVerify(raw, jwks, verifyOptions);
+      return payload;
+    }
+  } catch (err) {
+    // If remote JWKS verification fails, attempt verification with fallback public key
+  }
+
+  const fallbackKey = await getFallbackKey(jose);
+  if (fallbackKey) {
+    try {
+      const { payload } = await jose.jwtVerify(raw, fallbackKey, verifyOptions);
+      return payload;
+    } catch {
+      // Fall through to throw error
+    }
+  }
+
+  throw new Error('Unable to verify token signature');
 }
 
 module.exports = { verifyAccessToken };
