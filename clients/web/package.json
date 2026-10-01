@@ -7,14 +7,16 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "serve -s dist"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
     "oidc-client-ts": "^3.5.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-router-dom": "^7.18.4"
+    "react-router-dom": "^7.18.4",
+    "serve": "^14.2.6"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
